@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from langchain.tools import BaseTool
 from crewai.tools.base_tool import BaseTool
 from pydantic import BaseModel
 
@@ -11,7 +10,6 @@ from core.validation import validate_patent_dict
 
 import logging
 from typing import Dict, List, Any
-from langchain.tools import BaseTool
 
 class ProvisionalCoverSheetInput(BaseModel):
     patent_id: str = None

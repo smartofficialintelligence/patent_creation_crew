@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from typing import Dict, Any
-from langchain.tools import BaseTool
+from crewai.tools.base_tool import BaseTool
 from pydantic import BaseModel
 
 # Import from core modules

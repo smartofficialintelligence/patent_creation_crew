@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Dict, Any, List
-from langchain.tools import BaseTool
+from crewai.tools.base_tool import BaseTool
 
 # Import from core modules
 from core.validation import validate_patent_dict

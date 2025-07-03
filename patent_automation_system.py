@@ -22,7 +22,6 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process
-from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, validator
 import time
 import re
@@ -71,7 +70,6 @@ except ImportError:
 
 try:
     from crewai import Agent, Task, Crew, Process
-    from langchain.tools import BaseTool
     from dotenv import load_dotenv
 except ImportError as e:
     print(f"Missing required packages. Install with: pip install crewai langchain-openai python-dotenv")
@@ -1854,10 +1852,7 @@ def setup_output_directories():
     for tier in ['tier_1', 'tier_2', 'tier_3']:
         tier_dir = base_dir / tier
         tier_dir.mkdir(exist_ok=True)
-        
-        # Create subdirectories for different document types
-        for subdir in ['applications', 'claims', 'prior_art', 'reviews']:
-            (tier_dir / subdir).mkdir(exist_ok=True)
+        # Removed creation of unused subdirectories
     
     # Create colab_demos directory
     colab_dir = base_dir / "colab_demos"

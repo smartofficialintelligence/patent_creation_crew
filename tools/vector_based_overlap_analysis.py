@@ -5,7 +5,6 @@ import pickle
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
-from langchain.tools import BaseTool
 import os
 import logging
 from crewai.tools.base_tool import BaseTool

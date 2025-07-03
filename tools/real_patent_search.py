@@ -8,10 +8,14 @@ import re
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from crewai.tools.base_tool import BaseTool
+from datetime import datetime
+import json
 
 # Copy validate_patent_dict from the main file
 
 def validate_patent_dict(patent_data: Dict[str, Any]) -> Dict[str, Any]:
+    if patent_data is None:
+        raise ValueError("[ERROR] validate_patent_dict received None. 'patent_data' must be a dictionary.")
     required_fields = ['id', 'title', 'description', 'key_claims']
     missing_fields = [field for field in required_fields if field not in patent_data or patent_data[field] is None]
     if missing_fields:
@@ -69,22 +73,26 @@ class RealPatentSearchTool(BaseTool):
             logging.warning("EPO_API_KEY not found in environment variables")
 
     def _run(self, *args, **kwargs) -> str:
-        """Perform real patent search using Lens.org by default, EPO OPS optionally or as fallback."""
+        print("[DEBUG] RealPatentSearchTool _run called")
+        # Defensive: ensure patent_data is a dict
+        patent_data = None
         if args and isinstance(args[0], dict):
             patent_data = args[0]
-        elif 'patent_data' in kwargs:
+        elif 'patent_data' in kwargs and isinstance(kwargs['patent_data'], dict):
             patent_data = kwargs['patent_data']
         else:
-            patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', ''),
-                'technical_features': kwargs.get('technical_features', ''),
-                'market_applications': kwargs.get('market_applications', ''),
-                'value_estimate': kwargs.get('value_estimate', ''),
-                'differentiation': kwargs.get('differentiation', '')
-            }
+            # Try to build from individual fields if present
+            possible_fields = ['id', 'title', 'description', 'key_claims', 'technical_features', 'market_applications', 'value_estimate', 'differentiation']
+            if any(field in kwargs for field in possible_fields):
+                patent_data = {field: kwargs.get(field, None) for field in possible_fields}
+        if not isinstance(patent_data, dict):
+            print("[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary. Aborting tool run.")
+            logging.error("[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary. Aborting tool run.")
+            return "[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary."
+        # Merge top-level fields into patent_data if present
+        for field in ['id', 'title', 'description', 'key_claims', 'technical_features', 'market_applications', 'value_estimate', 'differentiation']:
+            if field in kwargs and kwargs[field] is not None:
+                patent_data[field] = kwargs[field]
         validated_data = validate_patent_dict(patent_data)
         patent_id = validated_data['id']
         title = validated_data['title']
@@ -110,6 +118,22 @@ class RealPatentSearchTool(BaseTool):
             except Exception as e:
                 logging.warning(f"EPO search failed: {e}")
         analyzed_results = self._analyze_search_results(all_results, validated_data)
+
+        # Save raw search results for manual review
+        tier = validated_data.get('tier', None)
+        if tier:
+            out_dir = os.path.join('patent_output', tier)
+        else:
+            out_dir = 'patent_output'
+        os.makedirs(out_dir, exist_ok=True)
+        out_file = os.path.join(out_dir, f"{patent_id}_patent_search_results.json")
+        try:
+            with open(out_file, 'w') as f:
+                json.dump(all_results, f, indent=2)
+            print(f"[RealPatentSearchTool] Saved raw patent search results to: {out_file}")
+        except Exception as e:
+            print(f"[RealPatentSearchTool] Failed to save search results: {e}")
+
         return self._generate_search_report(patent_id, title, search_queries, analyzed_results)
 
     def _generate_search_queries(self, title: str, description: str, key_claims: List[str]) -> List[str]:
@@ -157,6 +181,8 @@ class RealPatentSearchTool(BaseTool):
         results = []
         
         if not self.lens_api_key:
+            logging.error("[Lens.org] LENS_API_KEY not found in environment variables or not set.")
+            print("[Lens.org] LENS_API_KEY not found in environment variables or not set.")
             return results
         
         for query in queries[:3]:  # Limit to top 3 queries for rate limiting
@@ -167,23 +193,26 @@ class RealPatentSearchTool(BaseTool):
                     'Authorization': f'Bearer {self.lens_api_key}',
                     'Content-Type': 'application/json'
                 }
-                
                 payload = {
                     'query': query,
                     'size': 10,
                     'type': 'patent'
                 }
-                
+                print(f"[Lens.org] Making API call with query: {query}")
                 response = self.session.post(url, json=payload, headers=headers, timeout=30)
+                print(f"[Lens.org] Response status: {response.status_code}")
                 if response.status_code == 200:
                     data = response.json()
+                    print(f"[Lens.org] API call successful. Number of results: {len(data.get('data', []))}")
                     lens_results = self._parse_lens_results(data, query)
                     results.extend(lens_results)
-                
+                else:
+                    print(f"[Lens.org] API call failed. Status: {response.status_code}, Response: {response.text}")
+                    logging.warning(f"Lens.org API call failed. Status: {response.status_code}, Response: {response.text}")
             except Exception as e:
+                print(f"[Lens.org] Exception during API call: {e}")
                 logging.warning(f"Lens.org search failed for query '{query}': {e}")
                 continue
-        
         return results
 
     def _search_epo(self, queries: List[str]) -> List[Dict]:

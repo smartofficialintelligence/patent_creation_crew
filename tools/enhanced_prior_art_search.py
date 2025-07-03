@@ -2,15 +2,18 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from langchain.tools import BaseTool
+from crewai.tools.base_tool import BaseTool
 
 # Import from core modules
 from core.validation import validate_patent_dict
 
 class EnhancedPriorArtSearchTool(BaseTool):
     name: str = "enhanced_prior_art_search_tool"
-    description: str = "Conducts thorough prior art searches across patents and academic literature"
+    description: str = "Conducts thorough prior art searches across patents and academic literature (DEPRECATED, use RealPatentSearchTool instead)"
     
+    def _run(self, *args, **kwargs) -> str:
+        return "[ERROR] EnhancedPriorArtSearchTool is deprecated. Use RealPatentSearchTool for real prior art search. No fake results will be returned."
+
     def _run(self, *args, **kwargs) -> str:
         """Conduct comprehensive prior art search"""
         
