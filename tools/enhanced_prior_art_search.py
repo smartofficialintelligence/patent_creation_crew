@@ -2,10 +2,36 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from crewai.tools.base_tool import BaseTool
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
+import logging
 
 # Import from core modules
 from core.validation import validate_patent_dict
+
+class EnhancedPriorArtSearchInput(BaseModel):
+    patent_id: str
+    title: str
+    description: str
+    key_claims: list
+    technical_features: list = []
+    market_applications: list = []
+    value_estimate: str = ""
+    differentiation: str = ""
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if not v or (isinstance(v, str) and not v.strip()):
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
 
 class EnhancedPriorArtSearchTool(BaseTool):
     name: str = "enhanced_prior_art_search_tool"
@@ -16,46 +42,46 @@ class EnhancedPriorArtSearchTool(BaseTool):
 
     def _run(self, *args, **kwargs) -> str:
         """Conduct comprehensive prior art search"""
-        
-        # Handle both positional and keyword arguments
-        if args and isinstance(args[0], dict):
-            # If first positional argument is a dict, use it
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            # If patent_data is provided as keyword argument
-            patent_data = kwargs['patent_data']
-        else:
-            # Extract individual fields from kwargs
-            patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', ''),
-                'technical_features': kwargs.get('technical_features', ''),
-                'market_applications': kwargs.get('market_applications', ''),
-                'value_estimate': kwargs.get('value_estimate', ''),
-                'differentiation': kwargs.get('differentiation', '')
-            }
-        
-        # Validate input
-        validated_data = validate_patent_dict(patent_data)
-        
-        patent_id = validated_data['id']
-        title = validated_data['title']
-        key_claims = validated_data['key_claims']
-        
-        # Simulate comprehensive search across multiple databases
-        search_terms = [
-            "agent-based optimization",
-            "semantic reasoning AI",
-            "multi-agent coordination",
-            "neural network optimization",
-            "AutoML semantic",
-            "explainable AI optimization",
-            "distributed agent systems"
-        ]
-        
-        return f"""
+        try:
+            # Handle both positional and keyword arguments
+            if args and isinstance(args[0], dict):
+                # If first positional argument is a dict, use it
+                patent_data = args[0]
+            elif 'patent_data' in kwargs:
+                # If patent_data is provided as keyword argument
+                patent_data = kwargs['patent_data']
+            else:
+                # Extract individual fields from kwargs
+                patent_data = {
+                    'id': kwargs.get('id', 'UNKNOWN'),
+                    'title': kwargs.get('title', 'Untitled Patent'),
+                    'description': kwargs.get('description', 'No description provided'),
+                    'key_claims': kwargs.get('key_claims', ['No claims provided']),
+                    'technical_features': kwargs.get('technical_features', ['No technical features specified']),
+                    'market_applications': kwargs.get('market_applications', ['No market applications specified']),
+                    'value_estimate': kwargs.get('value_estimate', '$1-5M'),
+                    'differentiation': kwargs.get('differentiation', 'No differentiation specified')
+                }
+            
+            # Validate input
+            validated_data = validate_patent_dict(patent_data)
+            
+            patent_id = validated_data['id']
+            title = validated_data['title']
+            key_claims = validated_data['key_claims']
+            
+            # Simulate comprehensive search across multiple databases
+            search_terms = [
+                "agent-based optimization",
+                "semantic reasoning AI",
+                "multi-agent coordination",
+                "neural network optimization",
+                "AutoML semantic",
+                "explainable AI optimization",
+                "distributed agent systems"
+            ]
+            
+            return f"""
 COMPREHENSIVE PRIOR ART SEARCH REPORT
 =====================================
 
@@ -191,4 +217,30 @@ Recommendation: PROCEED WITH FILING
 Priority Level: {patent_data.get('priority', 'HIGH')}
 
 END OF PRIOR ART SEARCH REPORT
-""" 
+"""
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN ENHANCED PRIOR ART SEARCH TOOL
+=======================================
+
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during prior art search processing. This may be due to:
+- Invalid input data format
+- Missing required patent information
+- Search processing errors
+- Internal analysis errors
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- args count: {len(args) if args else 0}
+- kwargs keys: {list(kwargs.keys()) if kwargs else []}
+- patent_data type: {type(args[0] if args and isinstance(args[0], dict) else kwargs.get('patent_data', 'Not provided'))}
+"""
+            logging.error(f"EnhancedPriorArtSearchTool error: {e}")
+            return error_msg 

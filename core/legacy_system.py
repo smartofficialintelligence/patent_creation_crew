@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 CrewAI Patent Documentation Automation System
-For Agent-Based Optimization Patent Portfolio (40-50 Patents)
+For Agent-Based Optimization Patent Portfolio (37 Patents)
 
 Author: Patrick Kuehn
 Date: July 1, 2025
@@ -33,6 +33,7 @@ import pickle
 
 # Import tools from separate modules
 from tools.real_patent_search import RealPatentSearchTool
+from tools.patent_valuation import PatentValuationTool
 
 # Add export-related imports
 try:
@@ -106,7 +107,6 @@ def validate_patent_dict(patent_data: Dict[str, Any]) -> Dict[str, Any]:
     
     # Ensure optional fields have defaults
     patent_data.setdefault('technical_features', [])
-    patent_data.setdefault('value_estimate', '$1-5M')
     patent_data.setdefault('market_applications', [])
     patent_data.setdefault('differentiation', '')
     patent_data.setdefault('implementation_complexity', 'Medium')
@@ -120,7 +120,7 @@ PATENT_CONFIG = {
     "base_filing_date": "June 28-29, 2025",
     "expiration_date": "June 28-29, 2026",
     "filing_cost_per_patent": 130,
-    "target_portfolio_size": 50,
+    "target_portfolio_size": 37,
     "portfolio_tiers": {
         "tier_1": {
             "name": "Immediate (Week 1-4)",
@@ -159,7 +159,6 @@ PATENT_IDEAS = {
                 "Semantic checksums to prevent unauthorized implementations and ensure proprietary protection"
             ],
             "technical_features": ["MetaAgent class", "PRK system", "dynamic role assignment", "semantic checksums", "<5ms coordination cycle"],
-            "value_estimate": "$5-15M",
             "market_applications": ["AutoML", "Neural architecture search", "Hyperparameter optimization"],
             "differentiation": "Self-organizing agents across abstraction levels vs traditional multi-agent systems",
             "implementation_complexity": "Medium",
@@ -177,7 +176,6 @@ PATENT_IDEAS = {
                 "Fairness-aware arbitration with <5ms coordination cycle preservation"
             ],
             "technical_features": ["FastCoordinationSystem", "vectorized voting", "semantic compliance tags", "fairness-aware arbitration", "<5ms cycle"],
-            "value_estimate": "$2-5M",
             "market_applications": ["Distributed computing", "Edge device optimization", "Resource management"],
             "differentiation": "Adaptive, interpretable coordination vs fixed algorithms",
             "implementation_complexity": "Medium",
@@ -195,7 +193,6 @@ PATENT_IDEAS = {
                 "Transparent decision mechanisms via natural language traces with semantic memory of past attempts"
             ],
             "technical_features": ["MetaLearner", "contextual bias detection", "fairness constraints", "semantic memory", "natural language traces"],
-            "value_estimate": "$4-12M",
             "market_applications": ["Adaptive AI systems", "Continual learning", "Personalized optimization"],
             "differentiation": "Agents learn to modify their own learning strategies vs static AutoML",
             "implementation_complexity": "High",
@@ -213,7 +210,6 @@ PATENT_IDEAS = {
                 "Transparent selection rationale via semantic traces with minimal regulatory overhead"
             ],
             "technical_features": ["UltraFastToolkit", "semantic encoding", "fairness scoring", "semantic traces", "regulatory compliance"],
-            "value_estimate": "$2-8M",
             "market_applications": ["AutoML tools", "Optimization software", "AI development platforms"],
             "differentiation": "Intelligent, context-aware tool selection vs static heuristics",
             "implementation_complexity": "Medium",
@@ -231,7 +227,6 @@ PATENT_IDEAS = {
                 "Transparent optimization process with compliance tags replacing grid/random search"
             ],
             "technical_features": ["OptimizedSemanticMemory", "semantic interpretation", "bias detection", "fairness metrics", "compliance tags"],
-            "value_estimate": "$4-15M",
             "market_applications": ["AutoML platforms", "MLOps tools", "Model optimization"],
             "differentiation": "Replaces grid/random search with interpretable, adaptive reasoning",
             "implementation_complexity": "Medium",
@@ -249,7 +244,6 @@ PATENT_IDEAS = {
                 "Hierarchical coordination protocols for multi-layer agent systems"
             ],
             "technical_features": ["CrossLayerAgent", "message-passing", "inter-layer protocols", "semantic messaging"],
-            "value_estimate": "$3-10M",
             "market_applications": ["Deep learning frameworks", "Neural architecture design", "Model interpretability"],
             "differentiation": "Semantic inter-layer communication vs gradient-only backpropagation",
             "implementation_complexity": "High",
@@ -265,7 +259,6 @@ PATENT_IDEAS = {
                 "Decision audit trails for regulatory compliance in AI optimization"
             ],
             "technical_features": ["ExplanationLogger", "reasoning chains", "decision documentation", "audit trails"],
-            "value_estimate": "$3-10M",
             "market_applications": ["Regulated industries", "Healthcare AI", "Financial services", "Explainable AI"],
             "differentiation": "Built-in explainability vs post-hoc interpretation methods",
             "implementation_complexity": "Medium",
@@ -282,7 +275,6 @@ PATENT_IDEAS = {
                 "Performance-based agent spawning and termination with resource optimization",
                 "Adaptive agent population control for scalable optimization"
             ],
-            "value_estimate": "$3-8M",
             "market_applications": ["Scalable AI systems", "Cloud optimization", "Resource management"]
         },
         {
@@ -294,7 +286,6 @@ PATENT_IDEAS = {
                 "Federated agent coordination protocols with differential privacy",
                 "Secure multi-party agent optimization without data sharing"
             ],
-            "value_estimate": "$6-20M",
             "market_applications": ["Federated learning", "Privacy-preserving AI", "Healthcare consortiums"]
         },
         {
@@ -306,7 +297,6 @@ PATENT_IDEAS = {
                 "Anomaly detection in agent coordination systems with automatic remediation",
                 "Adaptive performance tuning for agent ensembles"
             ],
-            "value_estimate": "$2-5M",
             "market_applications": ["MLOps platforms", "Production AI systems", "System monitoring"]
         },
         {
@@ -318,7 +308,6 @@ PATENT_IDEAS = {
                 "Efficient semantic memory retrieval and storage with sub-millisecond access",
                 "Scalable agent memory management for production systems"
             ],
-            "value_estimate": "$3-8M",
             "market_applications": ["Large-scale AI", "Edge computing", "Memory-constrained systems"]
         },
         {
@@ -330,7 +319,6 @@ PATENT_IDEAS = {
                 "Consensus-building protocols for conflicting agent decisions",
                 "Hierarchical conflict resolution with semantic arbitration"
             ],
-            "value_estimate": "$2-6M",
             "market_applications": ["Multi-objective optimization", "Consensus systems", "Democratic AI"]
         },
         {
@@ -342,7 +330,6 @@ PATENT_IDEAS = {
                 "Dynamic loss function adaptation through semantic reasoning",
                 "Context-aware loss function modification for improved convergence"
             ],
-            "value_estimate": "$4-12M",
             "market_applications": ["Deep learning", "Adaptive training", "Custom loss functions"]
         },
         {
@@ -354,7 +341,6 @@ PATENT_IDEAS = {
                 "Bio-inspired optimization through semantic agent swarms",
                 "Emergent coordination behaviors in large agent populations"
             ],
-            "value_estimate": "$3-10M",
             "market_applications": ["Swarm robotics", "Distributed optimization", "Emergent AI"]
         }
     ],
@@ -374,7 +360,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic reasoning vs mathematical portfolio theory",
             "implementation_complexity": "Medium",
             "prior_art_risk": "Medium",
-            "value_estimate": "$5-15M"
         },
         {
             "id": "T3-002", 
@@ -390,7 +375,6 @@ PATENT_IDEAS = {
             "differentiation": "Explainable medical AI vs black-box algorithms",
             "implementation_complexity": "High",
             "prior_art_risk": "Low",
-            "value_estimate": "$8-25M"
         },
         {
             "id": "T3-003",
@@ -406,7 +390,6 @@ PATENT_IDEAS = {
             "differentiation": "Lightweight semantic agents vs heavy ML models",
             "implementation_complexity": "Medium",
             "prior_art_risk": "Medium",
-            "value_estimate": "$4-12M"
         },
         {
             "id": "T3-004",
@@ -422,7 +405,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic supply chain reasoning vs linear programming",
             "implementation_complexity": "Medium",
             "prior_art_risk": "Medium",
-            "value_estimate": "$6-18M"
         },
         {
             "id": "T3-005",
@@ -438,7 +420,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic vehicle coordination vs rule-based systems",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$10-30M"
         },
         {
             "id": "T3-006",
@@ -454,7 +435,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic grid optimization vs traditional SCADA systems",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$8-25M"
         },
         {
             "id": "T3-007",
@@ -470,7 +450,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic agricultural reasoning vs sensor-based automation",
             "implementation_complexity": "Medium",
             "prior_art_risk": "Medium",
-            "value_estimate": "$4-12M"
         },
         {
             "id": "T3-008",
@@ -486,7 +465,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic manufacturing reasoning vs PLC-based control",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$6-20M"
         },
         {
             "id": "T3-009",
@@ -502,7 +480,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic network optimization vs traditional routing protocols",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$5-15M"
         },
         {
             "id": "T3-010",
@@ -518,7 +495,6 @@ PATENT_IDEAS = {
             "differentiation": "Semantic security reasoning vs signature-based detection",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$8-25M"
         },
         # Defensive Patents (15)
         {
@@ -535,7 +511,6 @@ PATENT_IDEAS = {
             "differentiation": "Defensive patent coverage vs active implementation",
             "implementation_complexity": "Low",
             "prior_art_risk": "High",
-            "value_estimate": "$1-3M"
         },
         {
             "id": "T3-012",
@@ -551,7 +526,6 @@ PATENT_IDEAS = {
             "differentiation": "Graph-based communication vs linear protocols",
             "implementation_complexity": "Medium",
             "prior_art_risk": "Medium",
-            "value_estimate": "$2-5M"
         },
         # Additional defensive patents would be generated...
         # Implementation Variants (6)
@@ -569,7 +543,6 @@ PATENT_IDEAS = {
             "differentiation": "GPU-optimized semantic agents vs CPU-based reasoning",
             "implementation_complexity": "High",
             "prior_art_risk": "Medium",
-            "value_estimate": "$3-8M"
         }
         # Note: Abbreviated for brevity - full implementation would include all 36 Tier 3 patents
     ]
@@ -762,7 +735,7 @@ class PatentValidationError(Exception):
         for query in queries[:3]:  # Limit to top 3 queries for rate limiting
             try:
                 # Lens.org API
-                url = f"{self.lens_base_url}/scholar/search"
+                url = f"{self.lens_base_url}/patent/search"
                 headers = {
                     'Authorization': f'Bearer {self.lens_api_key}',
                     'Content-Type': 'application/json'
@@ -2893,6 +2866,7 @@ def parse_cli_args():
     parser.add_argument('--disable-vector-analysis', action='store_true', help='Disable vector analysis and use simple term overlap (faster)')
     parser.add_argument('--consolidated-risk-assessment', action='store_true', help='Generate consolidated risk assessment summary for existing patents')
     parser.add_argument('--export-colab-demo', action='store_true', help='Generate Colab-compatible notebooks with code demos for each patent')
+    parser.add_argument('--no-clear-outputs', action='store_true', help='Do not clear output and cache directories before running')
     args = parser.parse_args()
     global REPORT_TYPE, EXPORT_FORMATS, SKIP_IP_VALIDATION, RESUME_MODE, FORCE_OVERWRITE, FINAL_REVIEW_ONLY, COVER_SHEET_ONLY, USE_VECTOR_ANALYSIS, DISABLE_VECTOR_ANALYSIS, CONSOLIDATED_RISK_ASSESSMENT, EXPORT_COLAB_DEMO
     REPORT_TYPE = args.report_type
@@ -4633,7 +4607,7 @@ from agents.crew_agents import create_enhanced_agents
 from tasks.crew_tasks import create_enhanced_patent_tasks
 from core.validation import validate_patent_dict, PatentValidationError
 from core.export import export_report
-from core.utils import check_file_exists, should_skip_task, log_skip_reason, highlight_overlapping_terms
+from core.utils import check_file_exists, should_skip_task, log_skip_reason, highlight_overlapping_terms, clear_outputs
 from core.automation import run_enhanced_patent_automation, run_cover_sheet_only, run_final_review_only, run_consolidated_risk_assessment, run_ip_validation_only
 from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
 
@@ -4708,4 +4682,10 @@ def main():
     print("\n✅ Patent automation completed!")
 
 if __name__ == "__main__":
+    args = parse_cli_args()
+    if not getattr(args, 'no_clear_outputs', False):
+        print("[INFO] Clearing all output and cache directories before run...")
+        clear_outputs()
+    else:
+        print("[INFO] Skipping output/cache directory clearing (--no-clear-outputs set)")
     main()

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from crewai.tools.base_tool import BaseTool
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
 from pydantic import BaseModel
 
 # Import from core modules
@@ -28,43 +28,43 @@ class ProvisionalCoverSheetTool(BaseTool):
 
     def _run(self, *args, **kwargs) -> str:
         """Generate USPTO-compliant provisional patent application cover sheet"""
-        
-        # Handle both positional and keyword arguments
-        if args and isinstance(args[0], dict):
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            patent_data = kwargs['patent_data']
-        else:
-            patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', ''),
-                'technical_features': kwargs.get('technical_features', ''),
-                'market_applications': kwargs.get('market_applications', ''),
-                'value_estimate': kwargs.get('value_estimate', ''),
-                'differentiation': kwargs.get('differentiation', '')
-            }
-        
-        # Validate input
-        validated_data = validate_patent_dict(patent_data)
-        
-        patent_id = validated_data['id']
-        title = validated_data['title']
-        description = validated_data['description']
-        inventors = validated_data.get('inventors', ['Primary Inventor'])
-        assignee = validated_data.get('assignee', 'Patent Holder')
-        attorney_docket = validated_data.get('attorney_docket', f'PAT-{patent_id}')
-        
-        # Generate filing date (today's date)
-        filing_date = datetime.now().strftime('%m/%d/%Y')
-        
-        # Calculate page count estimate (rough estimate: 1 page per 500 words)
-        word_count = len(description.split())
-        estimated_pages = max(1, (word_count // 500) + 1)
-        
-        # Generate cover sheet content
-        cover_sheet = f"""
+        try:
+            # Handle both positional and keyword arguments
+            if args and isinstance(args[0], dict):
+                patent_data = args[0]
+            elif 'patent_data' in kwargs:
+                patent_data = kwargs['patent_data']
+            else:
+                patent_data = {
+                    'id': kwargs.get('id', 'UNKNOWN'),
+                    'title': kwargs.get('title', 'Untitled Patent'),
+                    'description': kwargs.get('description', 'No description provided'),
+                    'key_claims': kwargs.get('key_claims', ['No claims provided']),
+                    'technical_features': kwargs.get('technical_features', ['No technical features specified']),
+                    'market_applications': kwargs.get('market_applications', ['No market applications specified']),
+                    'value_estimate': kwargs.get('value_estimate', '$1-5M'),
+                    'differentiation': kwargs.get('differentiation', 'No differentiation specified')
+                }
+            
+            # Validate input
+            validated_data = validate_patent_dict(patent_data)
+            
+            patent_id = validated_data['id']
+            title = validated_data['title']
+            description = validated_data['description']
+            inventors = validated_data.get('inventors', ['Primary Inventor'])
+            assignee = validated_data.get('assignee', 'Patent Holder')
+            attorney_docket = validated_data.get('attorney_docket', f'PAT-{patent_id}')
+            
+            # Generate filing date (today's date)
+            filing_date = datetime.now().strftime('%m/%d/%Y')
+            
+            # Calculate page count estimate (rough estimate: 1 page per 500 words)
+            word_count = len(description.split())
+            estimated_pages = max(1, (word_count // 500) + 1)
+            
+            # Generate cover sheet content
+            cover_sheet = f"""
 PROVISIONAL APPLICATION FOR PATENT COVER SHEET
 ==============================================
 
@@ -85,15 +85,15 @@ TITLE OF INVENTION:
 INVENTOR INFORMATION:
 ====================
 """
-        
-        for i, inventor in enumerate(inventors, 1):
-            cover_sheet += f"""
+            
+            for i, inventor in enumerate(inventors, 1):
+                cover_sheet += f"""
 Inventor {i}: {inventor}
 - Residence: [City, State, Country]
 - Citizenship: [Country of Citizenship]
 """
-        
-        cover_sheet += f"""
+            
+            cover_sheet += f"""
 ASSIGNEE INFORMATION:
 ====================
 Assignee: {assignee}
@@ -199,23 +199,39 @@ USPTO COVER SHEET CHECKLIST:
 ☐ All inventors listed with correct information
 ☐ Assignee information complete (if applicable)
 ☐ Correspondence address provided
-☐ Entity status selected
-☐ Appropriate declarations checked
+☐ Entity status determined
 ☐ Fees calculated correctly
-☐ Payment method selected
+☐ All required declarations completed
 ☐ Signature and date included
-☐ Notary section completed (if required)
 
-IMPORTANT NOTES:
-===============
-1. This cover sheet must be filed with the provisional application
-2. All information must be accurate and complete
-3. Fees must be paid at time of filing
-4. Provisional applications are not examined
-5. Non-provisional application must be filed within 12 months
-6. Keep copy of filing receipt for future reference
-
-END OF PROVISIONAL APPLICATION COVER SHEET
+END OF COVER SHEET
+==================
 """
-        
-        return cover_sheet 
+            
+            return cover_sheet
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN PROVISIONAL COVER SHEET TOOL
+=====================================
+
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during cover sheet generation. This may be due to:
+- Invalid input data format
+- Missing required patent information
+- Template generation errors
+- Internal processing errors
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- args count: {len(args) if args else 0}
+- kwargs keys: {list(kwargs.keys()) if kwargs else []}
+- patent_data type: {type(args[0] if args and isinstance(args[0], dict) else kwargs.get('patent_data', 'Not provided'))}
+"""
+            logging.error(f"ProvisionalCoverSheetTool error: {e}")
+            return error_msg 

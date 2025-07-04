@@ -5,8 +5,8 @@ import time
 import logging
 from datetime import datetime
 from typing import Dict, Any, List
-from crewai.tools.base_tool import BaseTool
-from pydantic import BaseModel
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -20,12 +20,27 @@ except ImportError:
     print("⚠️ ArXiv library not available. Install arxiv-python package for academic search.")
 
 class ArxivSearchInput(BaseModel):
-    patent_data: dict = None
-    id: str = None
-    title: str = None
-    description: str = None
-    key_claims: list = None
-    technical_features: list = None
+    patent_id: str
+    title: str
+    description: str
+    key_claims: List[str]
+    technical_features: List[str] = []
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if v is None:
+            raise ValueError('Required field must not be None')
+        if isinstance(v, str) and not v.strip():
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
 
 class ArxivSearchTool(BaseTool):
     name: str = "arxiv_search_tool"
@@ -39,40 +54,83 @@ class ArxivSearchTool(BaseTool):
         self.max_results = max_results
         self.sort_by = sort_by
 
-    def _run(self, *args, **kwargs) -> str:
+    def _run(self, patent_id: str = None, title: str = None, description: str = None, key_claims: List[str] = None, 
+             technical_features: List[str] = None, query: str = None) -> str:
         """Search arXiv for academic papers related to the patent."""
-        if args and isinstance(args[0], dict):
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            patent_data = kwargs['patent_data']
-        else:
+        try:
+            # Handle different parameter formats from agents
+            if query and not description:
+                description = query
+                
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            technical_features = technical_features or ["No technical features specified"]
+            
+            # All inputs are guaranteed valid by Pydantic
             patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', []),
-                'technical_features': kwargs.get('technical_features', [])
+                'id': patent_id,
+                'title': title,
+                'description': description,
+                'key_claims': key_claims,
+                'technical_features': technical_features
             }
-        
-        search_queries = self._generate_search_queries(patent_data)
-        all_results = []
-        
-        for query in search_queries[:3]:  # Limit to top 3 queries
-            try:
-                papers = self._search_arxiv(query)
-                all_results.extend(papers)
-                time.sleep(1)  # Rate limiting
-            except Exception as e:
-                logging.warning(f"arXiv search failed for query '{query}': {e}")
-                continue
-        
-        # Deduplicate results
-        unique_results = self._deduplicate_results(all_results)
-        
-        # Analyze results
-        analysis = self._analyze_academic_results(unique_results, patent_data)
-        
-        return self._generate_academic_report(analysis, patent_data)
+            
+            search_queries = self._generate_search_queries(patent_data)
+            all_results = []
+            
+            for query in search_queries[:3]:  # Limit to top 3 queries
+                try:
+                    papers = self._search_arxiv(query)
+                    all_results.extend(papers)
+                    time.sleep(1)  # Rate limiting
+                except Exception as e:
+                    logging.warning(f"arXiv search failed for query '{query}': {e}")
+                    continue
+            
+            # Deduplicate results
+            unique_results = self._deduplicate_results(all_results)
+            
+            # Analyze results
+            analysis = self._analyze_academic_results(unique_results, patent_data)
+            
+            return self._generate_academic_report(analysis, patent_data)
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN ARXIV SEARCH TOOL
+==========================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during arXiv search processing. This may be due to:
+- ArXiv API connectivity issues
+- Invalid search parameters
+- Rate limiting
+- Internal processing error
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- technical_features count: {len(technical_features) if technical_features else 0}
+
+ArXiv Status:
+- ArXiv Library Available: {ARXIV_AVAILABLE}
+- Max Results: {self.max_results}
+- Sort By: {self.sort_by}
+"""
+            logging.error(f"ArxivSearchTool error: {e}")
+            return error_msg
     
     def _generate_search_queries(self, patent_data: Dict) -> List[str]:
         """Generate arXiv search queries from patent data"""

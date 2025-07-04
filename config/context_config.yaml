@@ -1,0 +1,77 @@
+# Context Management Configuration
+# This file helps manage context size and prevent token limit issues
+
+context_management:
+  # Maximum context size before clearing cache (in tokens)
+  max_context_size: 50000
+  
+  # Whether to clear cache automatically when approaching limits
+  auto_clear_cache: true
+  
+  # Clear cache after processing this many patents
+  clear_cache_after_patents: 5
+  
+  # Maximum number of embedding files to keep in cache
+  max_embedding_files: 100
+  
+  # Whether to use vector analysis (can be disabled to reduce context)
+  enable_vector_analysis: false
+  
+  # Model configuration for different context sizes
+  models:
+    small_context:
+      model: "gpt-4o-mini"
+      max_tokens: 8192
+      use_for: ["simple_tasks", "basic_analysis"]
+    
+    medium_context:
+      model: "gpt-4o"
+      max_tokens: 128000
+      use_for: ["standard_tasks", "patent_analysis"]
+    
+    large_context:
+      model: "gpt-4o"
+      max_tokens: 128000
+      use_for: ["complex_tasks", "comprehensive_analysis"]
+
+# Cache management settings
+cache_settings:
+  # Clear vector cache before starting new session
+  clear_on_start: true
+  
+  # Clear output directories before starting
+  clear_outputs_on_start: true
+  
+  # Maximum cache size in MB
+  max_cache_size_mb: 1000
+  
+  # Cache cleanup frequency (after N operations)
+  cleanup_frequency: 10
+
+# Error handling for context issues
+error_handling:
+  # Retry with smaller context if token limit exceeded
+  retry_with_smaller_context: true
+  
+  # Fallback to simpler analysis if vector analysis fails
+  fallback_to_simple_analysis: true
+  
+  # Maximum retries for context-related errors
+  max_retries: 3
+  
+  # Wait time between retries (seconds)
+  retry_delay: 5
+
+# Performance optimization
+performance:
+  # Use batch processing for embeddings
+  batch_embeddings: true
+  
+  # Batch size for embedding generation
+  embedding_batch_size: 10
+  
+  # Cache embeddings in memory
+  cache_embeddings_in_memory: false
+  
+  # Maximum memory usage for embeddings (MB)
+  max_memory_usage_mb: 500 

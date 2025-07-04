@@ -1,0 +1,285 @@
+# Task Configuration for Patent Automation System
+# Using CrewAI's native YAML format
+
+prior_art_research:
+  description: |
+    Conduct comprehensive prior art search and patentability analysis for:
+    
+    PATENT: {title}
+    ID: {id}
+    DESCRIPTION: {description}
+    
+    RESEARCH REQUIREMENTS:
+    1. Search Lens Patents API for real patent data
+    2. Review academic literature (arXiv, IEEE, ACM)
+    3. Analyze patent applications and published research
+    4. Assess novelty and non-obviousness using real data
+    5. Identify potential prior art conflicts from actual patents
+    6. Provide differentiation strategy recommendations based on real findings
+    
+    SEARCH FOCUS:
+    - Agent-based optimization systems
+    - Semantic reasoning in AI/ML
+    - Multi-agent coordination protocols  
+    - Neural network optimization alternatives
+    - AutoML and hyperparameter optimization
+    - Explainable AI and interpretable optimization
+    
+    KEY CLAIMS TO ANALYZE:
+    {claims_list}
+    
+    DELIVERABLE: Comprehensive prior art analysis with specific recommendations
+    for claim refinement and prosecution strategy.
+  expected_output: |
+    Comprehensive prior art analysis including:
+    - Real patent data from Lens Patents API
+    - Academic literature review (arXiv, IEEE, ACM)
+    - Prior art conflict identification and analysis
+    - Novelty and non-obviousness assessment
+    - Differentiation strategy recommendations
+    - Risk assessment and mitigation strategiesc
+    - Specific claim refinement suggestions
+  output_pydantic: tools.enhanced_prior_art_search.EnhancedPriorArtSearchInput
+  output_file: "patent_output/{tier}/{id}_prior_art_analysis.md"
+  agent: patent_researcher
+
+claims_refinement:
+  description: |
+    Refine and optimize patent claims for maximum strength and commercial value:
+    
+    PATENT: {title} (ID: {id})
+    
+    ORIGINAL CLAIMS:
+    {claims_list}
+    
+    REFINEMENT OBJECTIVES:
+    1. Maximize claim breadth while ensuring validity
+    2. Avoid identified prior art conflicts  
+    3. Include specific technical differentiators
+    4. Structure for optimal licensing value
+    5. Ensure enforceability and detectability
+    6. Plan prosecution and amendment strategy
+    
+    TECHNICAL FOCUS AREAS:
+    - Semantic reasoning vs. mathematical optimization
+    - Performance specifications (sub-5ms coordination)
+    - Interpretability and explainability features
+    - GPU optimization and scalability
+    - Agent coordination protocols
+    - Memory and learning capabilities
+    
+    VALUE TARGET: {value_estimate}
+    MARKET APPLICATIONS: {market_applications}
+    
+    Use prior art analysis to inform claim refinement strategy.
+  expected_output: |
+    Refined patent claims package including:
+    - Independent claims with maximum defensible breadth
+    - Dependent claims covering key technical features
+    - Alternative claim formulations for prosecution flexibility
+    - Prior art differentiation analysis
+    - Claim strength assessment (breadth vs. validity)
+    - Amendment strategy and fallback positions
+    - Commercial value optimization analysis
+  output_pydantic: tools.smart_claim_refinement.SmartClaimRefinementInput
+  output_file: "patent_output/{tier}/{id}_refined_claims.md"
+  agent: claims_specialist
+  context: [prior_art_research]
+
+patent_document:
+  description: |
+    Create comprehensive provisional patent application:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    DOCUMENT REQUIREMENTS:
+    1. Professional USPTO-compliant format
+    2. Comprehensive technical description
+    3. Clear enablement for skilled artisan
+    4. Strong claims section with refined claims
+    5. Commercial value proposition
+    6. Implementation examples and code
+    7. Prior art differentiation discussion
+    8. Regulatory compliance considerations
+    
+    PATENT DATA:
+    - Description: {description}
+    - Technical Features: {technical_features}
+    - Market Applications: {market_applications}
+    - Value Estimate: {value_estimate}
+    - Differentiation: {differentiation}
+    
+    QUALITY STANDARDS:
+    - USPTO provisional patent format compliance
+    - Clear technical disclosure sufficient for continuation
+    - Professional language and structure
+    - Complete enablement for implementation
+    - Strategic claim positioning for portfolio value
+    
+    Incorporate refined claims and prior art analysis findings.
+  expected_output: |
+    Complete provisional patent application including:
+    - Title page with inventor and filing information
+    - Cross-reference to related applications
+    - Field of invention and background
+    - Summary of invention with key advantages
+    - Detailed technical description with examples
+    - Refined claims section (independent and dependent)
+    - Commercial value and market analysis
+    - Prior art differentiation section
+    - Conclusion and filing recommendations
+  output_pydantic: tools.patent_document.PatentDocumentInput
+  output_file: "patent_output/{tier}/{id}_patent_application.md"
+  agent: patent_writer
+  context: [prior_art_research, claims_refinement]
+
+legal_review:
+  description: |
+    Comprehensive legal review and portfolio strategy analysis:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    LEGAL REVIEW REQUIREMENTS:
+    1. Patent law compliance assessment
+    2. Claim strength analysis (breadth, validity, enforceability)
+    3. Prior art risk evaluation and mitigation strategy
+    4. Commercial value assessment with licensing potential
+    5. Filing timeline and priority recommendations
+    6. International strategy (EP, CN, JP considerations)
+    7. Portfolio integration analysis
+    8. Risk assessment and mitigation recommendations
+    9. Prosecution budget and timeline estimates
+    10. Final filing recommendation (PROCEED/MODIFY/DELAY)
+    
+    ANALYSIS FOCUS:
+    - Legal compliance and USPTO requirements
+    - Claim validity and enforceability
+    - Prior art risk assessment
+    - Commercial value optimization
+    - Portfolio strategy integration
+    - International filing considerations
+    - Market timing considerations
+    - Competitive landscape analysis
+    
+    Provide specific recommendations for filing decisions and strategy.
+  expected_output: |
+    Legal review report including:
+    - Patent law compliance assessment
+    - Claim strength analysis (breadth, validity, enforceability)
+    - Prior art risk evaluation and mitigation strategy
+    - Commercial value assessment with licensing potential
+    - Filing timeline and priority recommendations
+    - International strategy (EP, CN, JP considerations)
+    - Portfolio integration analysis
+    - Risk assessment and mitigation recommendations
+    - Prosecution budget and timeline estimates
+    - Final filing recommendation (PROCEED/MODIFY/DELAY)
+  output_file: "patent_output/{tier}/{id}_legal_review.md"
+  agent: legal_reviewer
+  context: [prior_art_research, claims_refinement, patent_document]
+
+final_review:
+  description: |
+    Provide fresh perspective review and iterative improvement analysis:
+    
+    PATENT: {title} (ID: {id})
+    
+    REVIEW OBJECTIVES:
+    1. Evaluate completed patent work from independent perspective
+    2. Identify quality gaps and improvement opportunities
+    3. Assess completeness of all patent components
+    4. Provide iterative improvement recommendations
+    5. Calculate quality scores and confidence levels
+    6. Suggest enhancement strategies for maximum value
+    
+    REVIEW SCOPE:
+    - Original claims quality and completeness
+    - Prior art analysis integration and quality
+    - Claims refinement effectiveness
+    - Legal compliance and strategy assessment
+    - Term overlap analysis integration
+    - Overall patent quality and filing readiness
+    
+    FRESH PERSPECTIVE FOCUS:
+    - Identify overlooked opportunities
+    - Detect potential gaps or inconsistencies
+    - Suggest technical and strategic enhancements
+    - Assess commercial value optimization
+    - Evaluate risk mitigation completeness
+    
+    Use all available patent work to provide comprehensive quality assessment.
+  expected_output: |
+    Independent quality assurance report including:
+    - Fresh perspective analysis of completed work
+    - Quality gap identification and improvement opportunities
+    - Cross-functional review assessment
+    - Risk assessment and mitigation recommendations
+    - Iterative refinement suggestions
+    - Quality scoring and confidence assessment
+    - Actionable improvement recommendations
+    - Overall patent value optimization strategy
+  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
+  output_file: "patent_output/{tier}/{id}_final_review.md"
+  agent: final_reviewer
+  context: [prior_art_research, claims_refinement, patent_document, legal_review]
+
+cover_sheet:
+  description: |
+    Generate USPTO-compliant provisional patent application cover sheet:
+    
+    PATENT: {title} (ID: {id})
+    
+    COVER SHEET REQUIREMENTS:
+    1. USPTO-compliant provisional application cover sheet format
+    2. Complete inventor and assignee information
+    3. Accurate application details and page counts
+    4. Proper declaration statements and checkboxes
+    5. Fee calculation and payment method selection
+    6. Signature section and notary requirements
+    7. Filing checklist and compliance verification
+    
+    PATENT INFORMATION:
+    - Title: {title}
+    - Description Length: {description_length} words
+    - Number of Claims: {claims_count}
+    - Technical Features: {technical_features}
+    - Market Applications: {market_applications}
+    
+    FILING REQUIREMENTS:
+    - Entity Status: Determine appropriate entity status for fee calculation
+    - Priority Claims: Assess if priority should be claimed
+    - Government Interest: Determine if Government support applies
+    - Foreign Filing: Assess foreign filing license needs
+    - Sequence/Program Listings: Determine if applicable
+    
+    Ensure all USPTO requirements are met for successful filing.
+  expected_output: |
+    USPTO-compliant provisional application cover sheet including:
+    - Complete inventor and assignee information
+    - Accurate fee calculation and payment method
+    - Entity status determination and documentation
+    - Filing checklist and quality assurance
+    - USPTO form completion and compliance
+    - Professional formatting and presentation
+    - Filing-ready documentation
+  output_pydantic: tools.provisional_cover_sheet.ProvisionalCoverSheetInput
+  output_file: "patent_output/{tier}/{id}_cover_sheet.md"
+  agent: cover_sheet_specialist
+  context: [prior_art_research, claims_refinement, patent_document, legal_review, final_review]
+
+# Task generation configuration
+task_generation:
+  variable_mapping:
+    title: "patent_idea['title']"
+    id: "patent_idea['id']"
+    description: "patent_idea['description']"
+    claims_list: "chr(10).join(f'- {claim}' for claim in patent_idea['key_claims'])"
+    value_estimate: "patent_idea.get('value_estimate', '$2-15M')"
+    market_applications: "', '.join(patent_idea.get('market_applications', ['AI optimization']))"
+    technical_features: "', '.join(patent_idea.get('technical_features', []))"
+    differentiation: "patent_idea.get('differentiation', 'TBD')"
+    tier_name: "PATENT_CONFIG['portfolio_tiers'][tier]['name']"
+    description_length: "len(patent_idea['description'].split())"
+    claims_count: "len(patent_idea['key_claims'])" 

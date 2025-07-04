@@ -3,16 +3,37 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Any
-from crewai.tools.base_tool import BaseTool
-from pydantic import BaseModel
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
 
 # Import from core modules
 from core.validation import validate_patent_dict
 
 class SmartClaimRefinementInput(BaseModel):
-    claims: list = None
-    prior_art: str = None
-    patent_id: str = None
+    patent_id: str
+    title: str
+    description: str
+    key_claims: List[str]
+    prior_art_analysis: str = ""
+    technical_features: List[str] = []
+    market_applications: List[str] = []
+    differentiation: str = ""
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if v is None:
+            raise ValueError('Required field must not be None')
+        if isinstance(v, str) and not v.strip():
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
 
 class SmartClaimRefinementTool(BaseTool):
     name: str = "smart_claim_refinement_tool"
@@ -22,39 +43,50 @@ class SmartClaimRefinementTool(BaseTool):
     def __init__(self):
         super().__init__()
 
-    def _run(self, *args, **kwargs) -> str:
+    def _run(self, patent_id: str = None, title: str = None, description: str = None, key_claims: List[str] = None,
+             prior_art_analysis: str = None, technical_features: List[str] = None,
+             market_applications: List[str] = None, differentiation: str = None,
+             original_claims: List[str] = None, refinement_objectives: List[str] = None,
+             technical_focus_areas: List[str] = None, value_target: str = None) -> str:
         """Refine claims based on prior art analysis and strategic considerations"""
-        
-        # Handle both positional and keyword arguments
-        if args and isinstance(args[0], dict):
-            # If first positional argument is a dict, use it
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            # If patent_data is provided as keyword argument
-            patent_data = kwargs['patent_data']
-        else:
-            # Extract individual fields from kwargs
-            patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', ''),
-                'technical_features': kwargs.get('technical_features', ''),
-                'market_applications': kwargs.get('market_applications', ''),
-                'value_estimate': kwargs.get('value_estimate', ''),
-                'differentiation': kwargs.get('differentiation', '')
+        try:
+            print(f"[DEBUG] SmartClaimRefinementTool _run called")
+            
+            # Handle different parameter formats from agents
+            if original_claims and not key_claims:
+                key_claims = original_claims
+            if refinement_objectives and not prior_art_analysis:
+                prior_art_analysis = "Refinement objectives: " + ", ".join(refinement_objectives)
+            if technical_focus_areas and not technical_features:
+                technical_features = technical_focus_areas
+            if value_target and not market_applications:
+                market_applications = [f"Value target: {value_target}"]
+                
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            prior_art_analysis = prior_art_analysis or "No prior art analysis provided"
+            technical_features = technical_features or ["No technical features specified"]
+            market_applications = market_applications or ["No market applications specified"]
+            differentiation = differentiation or "No differentiation specified"
+            
+            # All inputs are guaranteed valid by Pydantic
+            validated_data = {
+                'id': patent_id,
+                'title': title,
+                'description': description,
+                'key_claims': key_claims,
+                'technical_features': technical_features,
+                'market_applications': market_applications,
+                'value_estimate': value_target or '$2-15M',
+                'differentiation': differentiation
             }
-        
-        prior_art_analysis = kwargs.get('prior_art_analysis', '')
-        
-        # Validate input
-        validated_data = validate_patent_dict(patent_data)
-        
-        patent_id = validated_data['id']
-        original_claims = validated_data['key_claims']
-        differentiation = validated_data['differentiation']
-        
-        return f"""
+            
+            original_claims = key_claims
+            
+            return f"""
 INTELLIGENT CLAIM REFINEMENT REPORT
 ==================================
 
@@ -186,30 +218,38 @@ Claim Scope Risk: LOW (well-balanced breadth vs. validity)
 
 Estimated Prosecution Cost: $8,000-12,000
 Estimated Grant Probability: 85-90%
-Estimated Commercial Value: {patent_data.get('value_estimate', '$2-15M')}
+Estimated Commercial Value: {validated_data.get('value_estimate', '$2-15M')}
+"""
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN SMART CLAIM REFINEMENT TOOL
+====================================
 
-RECOMMENDATIONS:
-===============
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-IMMEDIATE ACTIONS:
-1. ✅ File refined claims within 7 days
-2. ✅ Prepare continuation application strategy
-3. ✅ Monitor competitive filings in semantic AI optimization
-4. ✅ Begin freedom-to-operate analysis for commercialization
+The tool encountered an unexpected error during claim refinement processing. This may be due to:
+- Invalid input data format
+- Missing required patent information
+- Text processing errors
+- Internal analysis errors
 
-LONG-TERM STRATEGY:
-1. File family of related applications covering implementation variants
-2. Develop international filing strategy (EP, CN, JP priority markets)
-3. Consider trade secret protection for specific algorithmic details
-4. Plan portfolio licensing strategy for maximum monetization
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
 
-CONCLUSION:
-==========
-Refined claims provide strong, defensible coverage of the semantic agent optimization innovation while avoiding identified prior art conflicts. High probability of successful prosecution and significant commercial value.
-
-Confidence Level: 90%
-Recommendation: PROCEED WITH FILING
-Priority: CRITICAL (file within 7 days)
-
-END OF CLAIM REFINEMENT REPORT
-""" 
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- prior_art_analysis length: {len(prior_art_analysis) if prior_art_analysis else 0} characters
+- technical_features count: {len(technical_features) if technical_features else 0}
+- market_applications count: {len(market_applications) if market_applications else 0}
+- value_target: {value_target}
+- differentiation length: {len(differentiation) if differentiation else 0} characters
+"""
+            logging.error(f"SmartClaimRefinementTool error: {e}")
+            return error_msg 

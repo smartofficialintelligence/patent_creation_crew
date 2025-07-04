@@ -2,9 +2,10 @@
 
 import os
 from datetime import datetime
-from typing import Dict, Any
-from crewai.tools.base_tool import BaseTool
-from pydantic import BaseModel
+from typing import Dict, Any, List
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
+import logging
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -15,7 +16,7 @@ PATENT_CONFIG = {
     "base_filing_date": "June 28-29, 2025",
     "expiration_date": "June 28-29, 2026",
     "filing_cost_per_patent": 130,
-    "target_portfolio_size": 50,
+    "target_portfolio_size": 37,
     "portfolio_tiers": {
         "tier_1": {
             "name": "Immediate (Week 1-4)",
@@ -45,15 +46,29 @@ PATENT_CONFIG = {
 REPORT_TYPE = 'detailed'
 
 class PatentDocumentInput(BaseModel):
-    patent_data: dict = None
-    id: str = None
-    title: str = None
-    description: str = None
-    key_claims: list = None
-    technical_features: list = None
-    value_estimate: str = None
-    market_applications: list = None
-    differentiation: str = None
+    patent_id: str
+    title: str
+    description: str
+    key_claims: List[str]
+    technical_features: List[str] = []
+    market_applications: List[str] = []
+    differentiation: str = ""
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if v is None:
+            raise ValueError('Required field must not be None')
+        if isinstance(v, str) and not v.strip():
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
 
 class PatentDocumentTool(BaseTool):
     name: str = "patent_document_tool"
@@ -63,31 +78,38 @@ class PatentDocumentTool(BaseTool):
     def __init__(self):
         super().__init__()
 
-    def _run(self, *args, **kwargs) -> str:
+    def _run(self, patent_id: str, title: str, description: str, key_claims: List[str],
+             technical_features: List[str] = [], market_applications: List[str] = [], 
+             differentiation: str = "") -> str:
         """Generate a patent document template with customizable detail level"""
-        global REPORT_TYPE
-        # Handle both positional and keyword arguments
-        if args and isinstance(args[0], dict):
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            patent_data = kwargs['patent_data']
-        else:
-            patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', ''),
-                'technical_features': kwargs.get('technical_features', ''),
-                'market_applications': kwargs.get('market_applications', ''),
-                'value_estimate': kwargs.get('value_estimate', ''),
-                'differentiation': kwargs.get('differentiation', '')
+        try:
+            global REPORT_TYPE
+            
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            technical_features = technical_features or ["No technical features specified"]
+            market_applications = market_applications or ["No market applications specified"]
+            differentiation = differentiation or "No differentiation specified"
+            
+            # All inputs are guaranteed valid by Pydantic
+            validated_data = {
+                'id': patent_id,
+                'title': title,
+                'description': description,
+                'key_claims': key_claims,
+                'technical_features': technical_features,
+                'market_applications': market_applications,
+                'differentiation': differentiation
             }
-        validated_data = validate_patent_dict(patent_data)
-        filing_date = datetime.now()
-        app_number = f"63/{filing_date.strftime('%Y%m%d')}-{validated_data['id']}"
+            
+            filing_date = datetime.now()
+            app_number = f"63/{filing_date.strftime('%Y%m%d')}-{validated_data['id']}"
 
-        if REPORT_TYPE == 'summary':
-            template = f"""
+            if REPORT_TYPE == 'summary':
+                template = f"""
 PROVISIONAL PATENT APPLICATION (SUMMARY)
 
 Application Number: {app_number}
@@ -107,8 +129,8 @@ Technical Features: {', '.join(validated_data['technical_features'])}
 Market Applications: {', '.join(validated_data['market_applications'])}
 Value Estimate: {validated_data.get('value_estimate', 'TBD')}
 """
-        elif REPORT_TYPE == 'executive':
-            template = f"""
+            elif REPORT_TYPE == 'executive':
+                template = f"""
 PROVISIONAL PATENT APPLICATION (EXECUTIVE SUMMARY)
 
 Application Number: {app_number}
@@ -133,8 +155,8 @@ Strategic Advantages:
 
 Summary: This invention provides a novel approach to agent-based optimization, offering clear technical and commercial advantages over prior art. Recommended for immediate provisional filing and further portfolio development.
 """
-        else:  # detailed (default)
-            template = f"""
+            else:  # detailed (default)
+                template = f"""
     PROVISIONAL PATENT APPLICATION
 
     Application Number: {app_number}
@@ -208,11 +230,11 @@ Summary: This invention provides a novel approach to agent-based optimization, o
 
     4.3 Coordination Protocols
 
-    {patent_data.get('coordination_details', 'Agents coordinate through structured protocols including priority-weighted voting, auction-based resource allocation, and hierarchical oversight mechanisms.')}
+    {validated_data.get('coordination_details', 'Agents coordinate through structured protocols including priority-weighted voting, auction-based resource allocation, and hierarchical oversight mechanisms.')}
 
     4.4 Implementation Details
 
-    {patent_data.get('implementation_code', 'Detailed implementation provided in accompanying code examples and technical specifications.')}
+    {validated_data.get('implementation_code', 'Detailed implementation provided in accompanying code examples and technical specifications.')}
 
     4.5 Performance Characteristics
 
@@ -225,21 +247,21 @@ Summary: This invention provides a novel approach to agent-based optimization, o
     5. CLAIMS
 
     """
-            for i, claim in enumerate(patent_data['key_claims'], 1):
+            for i, claim in enumerate(validated_data['key_claims'], 1):
                 template += f"{i}. {claim}.\n\n"
-            base_claims = len(patent_data['key_claims'])
+            base_claims = len(validated_data['key_claims'])
             template += f"{base_claims + 1}. The method of claim 1, wherein the semantic agents utilize GPU-accelerated processing for sub-5ms coordination cycles.\n\n"
             template += f"{base_claims + 2}. The method of claim 1, further comprising real-time performance monitoring and adaptive agent behavior modification.\n\n"
             template += f"{base_claims + 3}. The method of claim 1, wherein the system provides interpretable decision logs for regulatory compliance.\n\n"
             template += f"""
     6. COMMERCIAL VALUE AND MARKET OPPORTUNITY
 
-    Estimated Patent Value: {patent_data.get('value_estimate', 'TBD')}
+    Estimated Patent Value: TBD (Use patent_valuation_tool for dynamic calculation)
     Target Market Size: $30-50B AI optimization market
-    Primary Applications: {', '.join(patent_data.get('market_applications', ['AI optimization', 'AutoML']))}
+    Primary Applications: {', '.join(validated_data.get('market_applications', ['AI optimization', 'AutoML']))}
 
     Market Differentiation:
-    {patent_data.get('differentiation', 'Novel semantic reasoning approach vs. traditional mathematical optimization')}
+    {validated_data.get('differentiation', 'Novel semantic reasoning approach vs. traditional mathematical optimization')}
 
     Competitive Advantage:
     - First-to-market semantic agent optimization technology
@@ -281,12 +303,46 @@ Summary: This invention provides a novel approach to agent-based optimization, o
     This provisional patent application establishes priority for fundamental innovations in agent-based optimization technology, providing broad coverage for semantic reasoning approaches to AI optimization problems.
 
     Filing Information:
-    - Patent ID: {patent_data['id']}
-    - Tier: {patent_data.get('tier', 'TBD')}
-    - Priority Level: {patent_data.get('priority', 'TBD')}
-    - Implementation Complexity: {patent_data.get('implementation_complexity', 'TBD')}
-    - Prior Art Risk: {patent_data.get('prior_art_risk', 'TBD')}
+    - Patent ID: {validated_data['id']}
+    - Tier: {validated_data.get('tier', 'TBD')}
+    - Priority Level: {validated_data.get('priority', 'TBD')}
+    - Implementation Complexity: {validated_data.get('implementation_complexity', 'TBD')}
+    - Prior Art Risk: {validated_data.get('prior_art_risk', 'TBD')}
 
     END OF PROVISIONAL PATENT APPLICATION
     """
-        return template 
+            return template
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN PATENT DOCUMENT TOOL
+=============================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during patent document generation. This may be due to:
+- Invalid input data format
+- Missing required patent information
+- Template generation errors
+- Internal processing errors
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- technical_features count: {len(technical_features) if technical_features else 0}
+- value_estimate: {value_estimate}
+- market_applications count: {len(market_applications) if market_applications else 0}
+- differentiation length: {len(differentiation) if differentiation else 0} characters
+
+Report Type: {REPORT_TYPE}
+"""
+            logging.error(f"PatentDocumentTool error: {e}")
+            return error_msg 

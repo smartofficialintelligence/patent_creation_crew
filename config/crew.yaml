@@ -1,0 +1,12 @@
+# CrewAI native crew configuration
+# This file references agents.yaml and tasks.yaml and defines the crew structure
+
+crew:
+  name: "Patent Automation Crew"
+  description: "A crew for automated patent research, drafting, and review."
+  agents: !include agents.yaml
+  tasks: !include tasks.yaml
+  process: sequential
+  memory: true
+  verbose: true
+  max_rpm: 30 

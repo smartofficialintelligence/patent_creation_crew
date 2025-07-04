@@ -1,7 +1,9 @@
 import os
 import json
 from typing import Dict, Any, List
-from crewai.tools.base_tool import BaseTool
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+import logging
+from datetime import datetime
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -12,20 +14,59 @@ class ColabDemoGeneratorTool(BaseTool):
     
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str], 
              technical_features: List[str], market_applications: List[str]) -> str:
-        
-        # Generate the notebook content
-        notebook_content = self._generate_colab_notebook(
-            patent_id, title, description, key_claims, technical_features, market_applications
-        )
-        
-        # Save the notebook
-        notebook_file = f"patent_output/colab_demos/{patent_id}_demo.ipynb"
-        os.makedirs(os.path.dirname(notebook_file), exist_ok=True)
-        
-        with open(notebook_file, 'w', encoding='utf-8') as f:
-            json.dump(notebook_content, f, indent=2)
-        
-        return f"✅ Colab notebook generated: {notebook_file}"
+        try:
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            technical_features = technical_features or ["No technical features specified"]
+            market_applications = market_applications or ["No market applications specified"]
+            
+            # Generate the notebook content
+            notebook_content = self._generate_colab_notebook(
+                patent_id, title, description, key_claims, technical_features, market_applications
+            )
+            
+            # Save the notebook
+            notebook_file = f"patent_output/colab_demos/{patent_id}_demo.ipynb"
+            os.makedirs(os.path.dirname(notebook_file), exist_ok=True)
+            
+            with open(notebook_file, 'w', encoding='utf-8') as f:
+                json.dump(notebook_content, f, indent=2)
+            
+            return f"✅ Colab notebook generated: {notebook_file}"
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN COLAB DEMO GENERATOR TOOL
+==================================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during Colab notebook generation. This may be due to:
+- Invalid input data format
+- Missing required patent information
+- File system errors
+- JSON serialization errors
+- Internal processing errors
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- technical_features count: {len(technical_features) if technical_features else 0}
+- market_applications count: {len(market_applications) if market_applications else 0}
+"""
+            logging.error(f"ColabDemoGeneratorTool error: {e}")
+            return error_msg
     
     def _generate_colab_notebook(self, patent_id: str, title: str, description: str, 
                                 key_claims: List[str], technical_features: List[str], 

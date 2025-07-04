@@ -6,8 +6,8 @@ import logging
 import time
 import re
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
-from crewai.tools.base_tool import BaseTool
+from pydantic import BaseModel, validator
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
 from datetime import datetime
 import json
 
@@ -30,15 +30,29 @@ def validate_patent_dict(patent_data: Dict[str, Any]) -> Dict[str, Any]:
 
 # Define args schema for the tool
 class RealPatentSearchInput(BaseModel):
-    patent_data: Optional[Dict[str, Any]] = None
-    id: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    key_claims: Optional[List[str]] = None
-    technical_features: Optional[List[str]] = None
-    market_applications: Optional[List[str]] = None
-    value_estimate: Optional[str] = None
-    differentiation: Optional[str] = None
+    patent_id: str
+    title: str
+    description: str
+    key_claims: List[str]
+    technical_features: List[str] = []
+    market_applications: List[str] = []
+    differentiation: str = ""
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if v is None:
+            raise ValueError('Required field must not be None')
+        if isinstance(v, str) and not v.strip():
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
 
 # Now the RealPatentSearchTool class
 
@@ -72,69 +86,114 @@ class RealPatentSearchTool(BaseTool):
         if not self.epo_api_key:
             logging.warning("EPO_API_KEY not found in environment variables")
 
-    def _run(self, *args, **kwargs) -> str:
-        print("[DEBUG] RealPatentSearchTool _run called")
-        # Defensive: ensure patent_data is a dict
-        patent_data = None
-        if args and isinstance(args[0], dict):
-            patent_data = args[0]
-        elif 'patent_data' in kwargs and isinstance(kwargs['patent_data'], dict):
-            patent_data = kwargs['patent_data']
-        else:
-            # Try to build from individual fields if present
-            possible_fields = ['id', 'title', 'description', 'key_claims', 'technical_features', 'market_applications', 'value_estimate', 'differentiation']
-            if any(field in kwargs for field in possible_fields):
-                patent_data = {field: kwargs.get(field, None) for field in possible_fields}
-        if not isinstance(patent_data, dict):
-            print("[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary. Aborting tool run.")
-            logging.error("[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary. Aborting tool run.")
-            return "[ERROR] RealPatentSearchTool: patent_data is missing or not a dictionary."
-        # Merge top-level fields into patent_data if present
-        for field in ['id', 'title', 'description', 'key_claims', 'technical_features', 'market_applications', 'value_estimate', 'differentiation']:
-            if field in kwargs and kwargs[field] is not None:
-                patent_data[field] = kwargs[field]
-        validated_data = validate_patent_dict(patent_data)
-        patent_id = validated_data['id']
-        title = validated_data['title']
-        description = validated_data['description']
-        key_claims = validated_data['key_claims']
-        search_queries = self._generate_search_queries(title, description, key_claims)
-        all_results = []
-        lens_success = False
-        # Lens.org search (default)
+    def _run(self, patent_id: str = None, title: str = None, description: str = None, key_claims: List[str] = None,
+             technical_features: List[str] = None, market_applications: List[str] = None, 
+             differentiation: str = None, keywords: List[str] = None, query: str = None) -> str:
+        """Performs real patent searches using Lens.org by default, with optional EPO OPS for legal/family mapping or as fallback."""
         try:
-            lens_results = self._search_lens(search_queries)
-            all_results.extend(lens_results)
-            lens_success = len(lens_results) > 0
-            time.sleep(1)
-        except Exception as e:
-            logging.warning(f"Lens.org search failed: {e}")
-        # EPO OPS (only if enabled or as fallback)
-        if self.use_epo_ops or not lens_success:
+            print("[DEBUG] RealPatentSearchTool _run called")
+            
+            # Handle different parameter formats from agents
+            if keywords and not key_claims:
+                key_claims = keywords
+            if query and not description:
+                description = query
+                
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            technical_features = technical_features or ["No technical features specified"]
+            market_applications = market_applications or ["No market applications specified"]
+            differentiation = differentiation or "No differentiation specified"
+            
+            # All inputs are guaranteed valid by Pydantic
+            validated_data = {
+                'id': patent_id,
+                'title': title,
+                'description': description,
+                'key_claims': key_claims,
+                'technical_features': technical_features,
+                'market_applications': market_applications,
+                'differentiation': differentiation,
+                'implementation_complexity': 'Medium',
+                'prior_art_risk': 'Medium'
+            }
+            search_queries = self._generate_search_queries(title, description, key_claims)
+            all_results = []
+            lens_success = False
+            # Lens.org search (default)
             try:
-                epo_results = self._search_epo(search_queries)
-                all_results.extend(epo_results)
+                lens_results = self._search_lens(search_queries)
+                all_results.extend(lens_results)
+                lens_success = len(lens_results) > 0
                 time.sleep(1)
             except Exception as e:
-                logging.warning(f"EPO search failed: {e}")
-        analyzed_results = self._analyze_search_results(all_results, validated_data)
+                logging.warning(f"Lens.org search failed: {e}")
+            # EPO OPS (only if enabled or as fallback)
+            if self.use_epo_ops or not lens_success:
+                try:
+                    epo_results = self._search_epo(search_queries)
+                    all_results.extend(epo_results)
+                    time.sleep(1)
+                except Exception as e:
+                    logging.warning(f"EPO search failed: {e}")
+            analyzed_results = self._analyze_search_results(all_results, validated_data)
 
-        # Save raw search results for manual review
-        tier = validated_data.get('tier', None)
-        if tier:
-            out_dir = os.path.join('patent_output', tier)
-        else:
-            out_dir = 'patent_output'
-        os.makedirs(out_dir, exist_ok=True)
-        out_file = os.path.join(out_dir, f"{patent_id}_patent_search_results.json")
-        try:
-            with open(out_file, 'w') as f:
-                json.dump(all_results, f, indent=2)
-            print(f"[RealPatentSearchTool] Saved raw patent search results to: {out_file}")
+            # Save raw search results for manual review
+            tier = validated_data.get('tier', None)
+            if tier:
+                out_dir = os.path.join('patent_output', tier)
+            else:
+                out_dir = 'patent_output'
+            os.makedirs(out_dir, exist_ok=True)
+            out_file = os.path.join(out_dir, f"{patent_id}_patent_search_results.json")
+            try:
+                with open(out_file, 'w') as f:
+                    json.dump(all_results, f, indent=2)
+                print(f"[RealPatentSearchTool] Saved raw patent search results to: {out_file}")
+            except Exception as e:
+                print(f"[RealPatentSearchTool] Failed to save search results: {e}")
+
+            return self._generate_search_report(patent_id, title, search_queries, analyzed_results)
+            
         except Exception as e:
-            print(f"[RealPatentSearchTool] Failed to save search results: {e}")
+            error_msg = f"""
+ERROR IN REAL PATENT SEARCH TOOL
+================================
 
-        return self._generate_search_report(patent_id, title, search_queries, analyzed_results)
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during patent search processing. This may be due to:
+- API connectivity issues
+- Invalid search parameters
+- Rate limiting
+- Internal processing error
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- technical_features count: {len(technical_features) if technical_features else 0}
+- market_applications count: {len(market_applications) if market_applications else 0}
+- value_estimate: {value_estimate}
+- differentiation length: {len(differentiation) if differentiation else 0} characters
+
+API Status:
+- Lens API Key: {'Available' if self.lens_api_key else 'Not Available'}
+- EPO API Key: {'Available' if self.epo_api_key else 'Not Available'}
+- Use EPO OPS: {self.use_epo_ops}
+"""
+            logging.error(f"RealPatentSearchTool error: {e}")
+            return error_msg
 
     def _generate_search_queries(self, title: str, description: str, key_claims: List[str]) -> List[str]:
         """Generate search queries based on patent content"""
@@ -188,7 +247,7 @@ class RealPatentSearchTool(BaseTool):
         for query in queries[:3]:  # Limit to top 3 queries for rate limiting
             try:
                 # Lens.org API
-                url = f"{self.lens_base_url}/scholar/search"
+                url = f"{self.lens_base_url}/patent/search"
                 headers = {
                     'Authorization': f'Bearer {self.lens_api_key}',
                     'Content-Type': 'application/json'
@@ -248,6 +307,15 @@ class RealPatentSearchTool(BaseTool):
         """Parse USPTO API response"""
         results = []
         
+        # Helper function to safely extract string values
+        def safe_extract_string(value, default=''):
+            if isinstance(value, list):
+                return ' '.join(str(item) for item in value)
+            elif isinstance(value, str):
+                return value
+            else:
+                return str(value) if value is not None else default
+        
         try:
             # USPTO API response structure
             applications = data.get('results', [])
@@ -255,15 +323,15 @@ class RealPatentSearchTool(BaseTool):
             for app in applications[:5]:  # Limit to top 5 results
                 try:
                     patent_info = {
-                        'patent_number': app.get('patentNumber', ''),
-                        'title': app.get('inventionTitle', ''),
-                        'abstract': app.get('abstractText', ''),
-                        'filing_date': app.get('filingDate', ''),
-                        'publication_date': app.get('publicationDate', ''),
-                        'assignee': app.get('assigneeName', ''),
-                        'inventors': app.get('inventorName', []),
-                        'classification': app.get('primaryClass', ''),
-                        'url': f"https://patents.google.com/patent/{app.get('patentNumber', '')}",
+                        'patent_number': safe_extract_string(app.get('patentNumber', '')),
+                        'title': safe_extract_string(app.get('inventionTitle', '')),
+                        'abstract': safe_extract_string(app.get('abstractText', '')),
+                        'filing_date': safe_extract_string(app.get('filingDate', '')),
+                        'publication_date': safe_extract_string(app.get('publicationDate', '')),
+                        'assignee': safe_extract_string(app.get('assigneeName', '')),
+                        'inventors': app.get('inventorName', []),  # Keep as list for inventors
+                        'classification': safe_extract_string(app.get('primaryClass', '')),
+                        'url': f"https://patents.google.com/patent/{safe_extract_string(app.get('patentNumber', ''))}",
                         'source': 'USPTO',
                         'query': query,
                         'relevance_score': self._calculate_relevance_score(app, query)
@@ -282,6 +350,15 @@ class RealPatentSearchTool(BaseTool):
         """Parse EPO OPS API response"""
         results = []
         
+        # Helper function to safely extract string values
+        def safe_extract_string(value, default=''):
+            if isinstance(value, list):
+                return ' '.join(str(item) for item in value)
+            elif isinstance(value, str):
+                return value
+            else:
+                return str(value) if value is not None else default
+        
         try:
             # EPO OPS API response structure
             applications = data.get('ops:world-patent-data', {}).get('ops:biblio-search', {}).get('ops:search-result', {}).get('ops:publication-reference', [])
@@ -291,16 +368,16 @@ class RealPatentSearchTool(BaseTool):
             
             for app in applications[:5]:  # Limit to top 5 results
                 try:
-                    doc_number = app.get('document-id', {}).get('doc-number', '')
+                    doc_number = safe_extract_string(app.get('document-id', {}).get('doc-number', ''))
                     patent_info = {
                         'patent_number': doc_number,
-                        'title': app.get('invention-title', ''),
-                        'abstract': app.get('abstract', ''),
-                        'filing_date': app.get('filing-date', ''),
-                        'publication_date': app.get('publication-date', ''),
-                        'assignee': app.get('applicant', ''),
-                        'inventors': app.get('inventor', []),
-                        'classification': app.get('classification-ipc', ''),
+                        'title': safe_extract_string(app.get('invention-title', '')),
+                        'abstract': safe_extract_string(app.get('abstract', '')),
+                        'filing_date': safe_extract_string(app.get('filing-date', '')),
+                        'publication_date': safe_extract_string(app.get('publication-date', '')),
+                        'assignee': safe_extract_string(app.get('applicant', '')),
+                        'inventors': app.get('inventor', []),  # Keep as list for inventors
+                        'classification': safe_extract_string(app.get('classification-ipc', '')),
                         'url': f"https://worldwide.espacenet.com/patent/search/family/{doc_number}",
                         'source': 'EPO',
                         'query': query,
@@ -320,6 +397,15 @@ class RealPatentSearchTool(BaseTool):
         """Parse PatentsView API response"""
         results = []
         
+        # Helper function to safely extract string values
+        def safe_extract_string(value, default=''):
+            if isinstance(value, list):
+                return ' '.join(str(item) for item in value)
+            elif isinstance(value, str):
+                return value
+            else:
+                return str(value) if value is not None else default
+        
         try:
             # PatentsView API response structure
             patents = data.get('patents', [])
@@ -327,15 +413,15 @@ class RealPatentSearchTool(BaseTool):
             for patent in patents[:5]:  # Limit to top 5 results
                 try:
                     patent_info = {
-                        'patent_number': patent.get('patent_number', ''),
-                        'title': patent.get('patent_title', ''),
-                        'abstract': patent.get('patent_abstract', ''),
-                        'filing_date': patent.get('patent_date', ''),
-                        'publication_date': patent.get('patent_date', ''),
-                        'assignee': patent.get('assignee_name', ''),
-                        'inventors': patent.get('inventor_name', []),
-                        'classification': patent.get('cpc_subsection', ''),
-                        'url': f"https://patents.google.com/patent/{patent.get('patent_number', '')}",
+                        'patent_number': safe_extract_string(patent.get('patent_number', '')),
+                        'title': safe_extract_string(patent.get('patent_title', '')),
+                        'abstract': safe_extract_string(patent.get('patent_abstract', '')),
+                        'filing_date': safe_extract_string(patent.get('patent_date', '')),
+                        'publication_date': safe_extract_string(patent.get('patent_date', '')),
+                        'assignee': safe_extract_string(patent.get('assignee_name', '')),
+                        'inventors': patent.get('inventor_name', []),  # Keep as list for inventors
+                        'classification': safe_extract_string(patent.get('cpc_subsection', '')),
+                        'url': f"https://patents.google.com/patent/{safe_extract_string(patent.get('patent_number', ''))}",
                         'source': 'PatentsView',
                         'query': query,
                         'relevance_score': self._calculate_relevance_score(patent, query)
@@ -354,6 +440,15 @@ class RealPatentSearchTool(BaseTool):
         """Parse Lens.org API response"""
         results = []
         
+        # Helper function to safely extract string values
+        def safe_extract_string(value, default=''):
+            if isinstance(value, list):
+                return ' '.join(str(item) for item in value)
+            elif isinstance(value, str):
+                return value
+            else:
+                return str(value) if value is not None else default
+        
         try:
             # Lens.org API response structure
             patents = data.get('data', [])
@@ -361,15 +456,15 @@ class RealPatentSearchTool(BaseTool):
             for patent in patents[:5]:  # Limit to top 5 results
                 try:
                     patent_info = {
-                        'patent_number': patent.get('lens_id', ''),
-                        'title': patent.get('title', ''),
-                        'abstract': patent.get('abstract', ''),
-                        'filing_date': patent.get('filing_date', ''),
-                        'publication_date': patent.get('publication_date', ''),
-                        'assignee': patent.get('applicant', ''),
-                        'inventors': patent.get('inventor', []),
-                        'classification': patent.get('cpc', ''),
-                        'url': patent.get('lens_url', ''),
+                        'patent_number': safe_extract_string(patent.get('lens_id', '')),
+                        'title': safe_extract_string(patent.get('title', '')),
+                        'abstract': safe_extract_string(patent.get('abstract', '')),
+                        'filing_date': safe_extract_string(patent.get('filing_date', '')),
+                        'publication_date': safe_extract_string(patent.get('publication_date', '')),
+                        'assignee': safe_extract_string(patent.get('applicant', '')),
+                        'inventors': patent.get('inventor', []),  # Keep as list for inventors
+                        'classification': safe_extract_string(patent.get('cpc', '')),
+                        'url': safe_extract_string(patent.get('lens_url', '')),
                         'source': 'Lens.org',
                         'query': query,
                         'relevance_score': self._calculate_relevance_score(patent, query)
@@ -388,18 +483,27 @@ class RealPatentSearchTool(BaseTool):
         """Calculate relevance score for a patent (0-10)"""
         score = 0.0
         
+        # Helper function to safely convert to string
+        def safe_to_string(value):
+            if isinstance(value, list):
+                return ' '.join(str(item) for item in value)
+            elif isinstance(value, str):
+                return value
+            else:
+                return str(value) if value is not None else ''
+        
         # Title relevance
-        title = patent.get('title', '').lower()
+        title = safe_to_string(patent.get('title', '')).lower()
         if any(term in title for term in query.lower().split()):
             score += 2.0
         
         # Abstract relevance
-        abstract = patent.get('abstract', '').lower()
+        abstract = safe_to_string(patent.get('abstract', '')).lower()
         if any(term in abstract for term in query.lower().split()):
             score += 2.0
         
         # Date relevance (newer patents get higher scores)
-        pub_date = patent.get('publication_date', '')
+        pub_date = safe_to_string(patent.get('publication_date', ''))
         if pub_date:
             try:
                 pub_year = int(pub_date[:4])
@@ -411,12 +515,12 @@ class RealPatentSearchTool(BaseTool):
                 pass
         
         # Classification relevance
-        classification = patent.get('classification', '').lower()
+        classification = safe_to_string(patent.get('classification', '')).lower()
         if any(code in classification for code in ['g06n', 'g06f', 'h04l']):
             score += 1.0
         
         # Source relevance (USPTO and EPO get higher scores)
-        source = patent.get('source', '').lower()
+        source = safe_to_string(patent.get('source', '')).lower()
         if source in ['uspto', 'epo']:
             score += 0.5
         

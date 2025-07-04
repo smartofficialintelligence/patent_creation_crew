@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Dict, Any, List
 import os
 import logging
-from crewai.tools.base_tool import BaseTool
-from pydantic import BaseModel
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -24,9 +24,34 @@ except ImportError:
     print("⚠️ Sentence transformers not available. Vector analysis will use fallback methods.")
 
 class VectorBasedOverlapAnalysisInput(BaseModel):
-    claims: list
-    prior_art_data: list
-    patent_id: str = None
+    patent_id: str
+    title: str
+    description: str
+    key_claims: List[str]
+    prior_art_data: List[Dict]
+    technical_features: List[str] = []
+
+    @validator('patent_id', 'title', 'description')
+    def required_fields_must_not_be_empty(cls, v):
+        if v is None:
+            raise ValueError('Required field must not be None')
+        if isinstance(v, str) and not v.strip():
+            raise ValueError('Required field must not be empty')
+        return v
+
+    @validator('key_claims')
+    def key_claims_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('key_claims must be a list')
+        if not v:
+            raise ValueError('key_claims must not be empty')
+        return v
+
+    @validator('prior_art_data')
+    def prior_art_data_must_be_list(cls, v):
+        if not isinstance(v, list):
+            raise ValueError('prior_art_data must be a list')
+        return v
 
 class VectorBasedOverlapAnalysisTool(BaseTool):
     name: str = "vector_based_overlap_analysis_tool"
@@ -34,7 +59,7 @@ class VectorBasedOverlapAnalysisTool(BaseTool):
     args_schema: type[BaseModel] = VectorBasedOverlapAnalysisInput
     model_name: str = "all-MiniLM-L6-v2"
     cache_dir: str = "vector_cache"
-    model: any = None
+    model: Any = None
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2", cache_dir: str = "vector_cache"):
         super().__init__()
@@ -113,75 +138,113 @@ class VectorBasedOverlapAnalysisTool(BaseTool):
         
         return chunks if chunks else [text]
     
-    def _run(self, *args, **kwargs) -> str:
+    def _run(self, patent_id: str, title: str, description: str, key_claims: List[str], 
+             prior_art_data: List[Dict], technical_features: List[str] = []) -> str:
         """Perform vector-based overlap analysis between claims and prior art"""
-        
-        # Extract parameters
-        if args and isinstance(args[0], dict):
-            patent_data = args[0]
-        elif 'patent_data' in kwargs:
-            patent_data = kwargs['patent_data']
-        else:
+        try:
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            description = description or "No description provided"
+            key_claims = key_claims or ["No claims provided"]
+            prior_art_data = prior_art_data or []
+            technical_features = technical_features or ["No technical features specified"]
+            
+            # All inputs are guaranteed valid by Pydantic
             patent_data = {
-                'id': kwargs.get('id', ''),
-                'title': kwargs.get('title', ''),
-                'description': kwargs.get('description', ''),
-                'key_claims': kwargs.get('key_claims', []),
-                'technical_features': kwargs.get('technical_features', '')
-            }
-        
-        prior_art_data = kwargs.get('prior_art_data', [])
-        
-        if not prior_art_data:
-            return "No prior art data provided for analysis."
-        
-        patent_id = patent_data.get('id', 'Unknown')
-        claims = patent_data.get('key_claims', [])
-        
-        print(f"🔍 Performing vector-based overlap analysis for patent {patent_id}")
-        print(f"   Claims: {len(claims)}")
-        print(f"   Prior art: {len(prior_art_data)} patents")
-        
-        # Prepare text for embedding
-        claim_texts = []
-        for i, claim in enumerate(claims):
-            claim_texts.append(f"Claim {i+1}: {claim}")
-        
-        prior_art_texts = []
-        prior_art_metadata = []
-        for patent in prior_art_data:
-            title = patent.get('title', '')
-            abstract = patent.get('abstract', '')
-            combined_text = f"Title: {title}. Abstract: {abstract}"
-            prior_art_texts.append(combined_text)
-            prior_art_metadata.append({
-                'patent_number': patent.get('patent_number', 'Unknown'),
+                'id': patent_id,
                 'title': title,
-                'relevance_score': patent.get('relevance_score', 0)
-            })
-        
-        # Generate embeddings
-        print("🔄 Generating embeddings...")
-        claim_embeddings = self._get_embeddings(claim_texts)
-        prior_art_embeddings = self._get_embeddings(prior_art_texts)
-        
-        if claim_embeddings is None or prior_art_embeddings is None:
-            print("⚠️ Falling back to simple term overlap analysis")
-            return self._fallback_analysis(claims, prior_art_data)
-        
-        # Calculate similarities
-        print("🔄 Calculating semantic similarities...")
-        similarities = self._calculate_semantic_similarity(claim_embeddings, prior_art_embeddings)
-        
-        if similarities is None:
-            print("⚠️ Falling back to simple term overlap analysis")
-            return self._fallback_analysis(claims, prior_art_data)
-        
-        # Analyze results
-        print("🔄 Analyzing overlap patterns...")
-        analysis_results = self._analyze_similarities(similarities, claims, prior_art_metadata)
-        
-        return self._generate_vector_analysis_report(analysis_results, patent_id, claims, prior_art_metadata)
+                'description': description,
+                'key_claims': key_claims,
+                'technical_features': technical_features
+            }
+            
+            if not prior_art_data:
+                return "No prior art data provided for analysis."
+            
+            claims = key_claims
+            
+            print(f"🔍 Performing vector-based overlap analysis for patent {patent_id}")
+            print(f"   Claims: {len(claims)}")
+            print(f"   Prior art: {len(prior_art_data)} patents")
+            
+            # Prepare text for embedding
+            claim_texts = []
+            for i, claim in enumerate(claims):
+                claim_texts.append(f"Claim {i+1}: {claim}")
+            
+            prior_art_texts = []
+            prior_art_metadata = []
+            for patent in prior_art_data:
+                title = patent.get('title', '')
+                abstract = patent.get('abstract', '')
+                combined_text = f"Title: {title}. Abstract: {abstract}"
+                prior_art_texts.append(combined_text)
+                prior_art_metadata.append({
+                    'patent_number': patent.get('patent_number', 'Unknown'),
+                    'title': title,
+                    'relevance_score': patent.get('relevance_score', 0)
+                })
+            
+            # Generate embeddings
+            print("🔄 Generating embeddings...")
+            claim_embeddings = self._get_embeddings(claim_texts)
+            prior_art_embeddings = self._get_embeddings(prior_art_texts)
+            
+            if claim_embeddings is None or prior_art_embeddings is None:
+                print("⚠️ Falling back to simple term overlap analysis")
+                return self._fallback_analysis(claims, prior_art_data)
+            
+            # Calculate similarities
+            print("🔄 Calculating semantic similarities...")
+            similarities = self._calculate_semantic_similarity(claim_embeddings, prior_art_embeddings)
+            
+            if similarities is None:
+                print("⚠️ Falling back to simple term overlap analysis")
+                return self._fallback_analysis(claims, prior_art_data)
+            
+            # Analyze results
+            print("🔄 Analyzing overlap patterns...")
+            analysis_results = self._analyze_similarities(similarities, claims, prior_art_metadata)
+            
+            return self._generate_vector_analysis_report(analysis_results, patent_id, claims, prior_art_metadata)
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN VECTOR-BASED OVERLAP ANALYSIS TOOL
+===========================================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during vector-based overlap analysis. This may be due to:
+- Model loading issues
+- Memory constraints
+- Invalid input data format
+- Embedding generation failures
+- Internal processing error
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- description length: {len(description) if description else 0} characters
+- key_claims count: {len(key_claims) if key_claims else 0}
+- prior_art_data count: {len(prior_art_data) if prior_art_data else 0}
+- technical_features count: {len(technical_features) if technical_features else 0}
+
+Model Status:
+- Sentence Transformers Available: {SENTENCE_TRANSFORMERS_AVAILABLE}
+- Model Name: {self.model_name}
+- Model Loaded: {'Yes' if self.model is not None else 'No'}
+- Cache Directory: {self.cache_dir}
+"""
+            logging.error(f"VectorBasedOverlapAnalysisTool error: {e}")
+            return error_msg
     
     def _analyze_similarities(self, similarities: np.ndarray, claims: List[str], prior_art_metadata: List[Dict]) -> Dict:
         """Analyze similarity patterns and identify high-risk overlaps"""

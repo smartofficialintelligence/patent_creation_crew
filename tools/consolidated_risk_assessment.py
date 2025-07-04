@@ -3,8 +3,9 @@
 import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
-from crewai.tools.base_tool import BaseTool
-from pydantic import BaseModel
+from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from pydantic import BaseModel, validator
+import logging
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -18,6 +19,12 @@ class ConsolidatedRiskAssessmentInput(BaseModel):
     vector_analysis: str = ""
     final_review: str = ""
 
+    @validator('patent_id', 'title')
+    def required_fields_must_not_be_empty(cls, v):
+        if not v or (isinstance(v, str) and not v.strip()):
+            raise ValueError('Required field must not be empty')
+        return v
+
 class ConsolidatedRiskAssessmentTool(BaseTool):
     name: str = "consolidated_risk_assessment_tool"
     description: str = "Generate comprehensive risk assessment by analyzing prior art, academic literature, overlap analysis, and vector analysis results."
@@ -30,8 +37,19 @@ class ConsolidatedRiskAssessmentTool(BaseTool):
              academic_analysis: str = "", overlap_analysis: str = "", 
              vector_analysis: str = "", final_review: str = "", 
              refined_claims: str = "", legal_review: str = "") -> str:
-        
-        report = f"""
+        try:
+            # Handle potential None values or empty strings
+            patent_id = patent_id or "UNKNOWN"
+            title = title or "Untitled Patent"
+            prior_art_analysis = prior_art_analysis or "No prior art analysis provided"
+            academic_analysis = academic_analysis or "No academic analysis provided"
+            overlap_analysis = overlap_analysis or "No overlap analysis provided"
+            vector_analysis = vector_analysis or "No vector analysis provided"
+            final_review = final_review or "No final review provided"
+            refined_claims = refined_claims or "No refined claims provided"
+            legal_review = legal_review or "No legal review provided"
+            
+            report = f"""
 CONSOLIDATED RISK ASSESSMENT & FINAL SUMMARY
 ============================================
 
@@ -51,12 +69,12 @@ OVERALL RISK PROFILE
 ===================
 
 """
-        
-        # Calculate overall risk metrics
-        risk_metrics = self._calculate_risk_metrics(prior_art_analysis, academic_analysis, 
-                                                   overlap_analysis, vector_analysis)
-        
-        report += f"""
+            
+            # Calculate overall risk metrics
+            risk_metrics = self._calculate_risk_metrics(prior_art_analysis, academic_analysis, 
+                                                       overlap_analysis, vector_analysis)
+            
+            report += f"""
 Risk Assessment Summary:
 - Overall Patent Risk Level: {risk_metrics['overall_patent_risk']}
 - Academic Literature Risk: {risk_metrics['academic_risk']}
@@ -73,171 +91,192 @@ PRIOR ART RISK ANALYSIS
 =======================
 
 """
-        
-        if prior_art_analysis:
-            report += self._extract_prior_art_summary(prior_art_analysis)
-        else:
-            report += "⚠️ Prior art analysis not performed - critical risk assessment missing\n"
-        
-        report += f"""
+            
+            if prior_art_analysis:
+                report += self._extract_prior_art_summary(prior_art_analysis)
+            else:
+                report += "⚠️ Prior art analysis not performed - critical risk assessment missing\n"
+            
+            report += f"""
 ACADEMIC LITERATURE RISK ANALYSIS
 =================================
 
 """
-        
-        if academic_analysis:
-            report += self._extract_academic_summary(academic_analysis)
-        else:
-            report += "⚠️ Academic literature analysis not performed - research gap assessment missing\n"
-        
-        report += f"""
+            
+            if academic_analysis:
+                report += self._extract_academic_summary(academic_analysis)
+            else:
+                report += "⚠️ Academic literature analysis not performed - research gap assessment missing\n"
+            
+            report += f"""
 TERM OVERLAP RISK ANALYSIS
 ==========================
 
 """
-        
-        if overlap_analysis:
-            report += self._extract_overlap_summary(overlap_analysis)
-        else:
-            report += "⚠️ Term overlap analysis not performed - claim differentiation assessment missing\n"
-        
-        report += f"""
+            
+            if overlap_analysis:
+                report += self._extract_overlap_summary(overlap_analysis)
+            else:
+                report += "⚠️ Term overlap analysis not performed - claim differentiation assessment missing\n"
+            
+            report += f"""
 VECTOR-BASED SEMANTIC RISK ANALYSIS
 ===================================
 
 """
-        
-        if vector_analysis:
-            report += self._extract_vector_summary(vector_analysis)
-        else:
-            report += "ℹ️ Vector analysis not performed - using term-based analysis only\n"
-        
-        report += f"""
+            
+            if vector_analysis:
+                report += self._extract_vector_summary(vector_analysis)
+            else:
+                report += "ℹ️ Vector analysis not performed - using term-based analysis only\n"
+            
+            report += f"""
 QUALITY ASSESSMENT
 ==================
 
 """
-        
-        if final_review:
-            report += self._extract_quality_summary(final_review)
-        else:
-            report += "⚠️ Final quality review not performed - comprehensive assessment missing\n"
-        
-        report += f"""
+            
+            if final_review:
+                report += self._extract_quality_summary(final_review)
+            else:
+                report += "⚠️ Final quality review not performed - comprehensive assessment missing\n"
+            
+            report += f"""
 CRITICAL FINDINGS & RISKS
 =========================
 
 """
-        
-        critical_findings = self._identify_critical_findings(prior_art_analysis, academic_analysis, 
-                                                           overlap_analysis, vector_analysis)
-        
-        if critical_findings['high_priority']:
-            report += "🚨 HIGH PRIORITY RISKS:\n"
-            for finding in critical_findings['high_priority']:
-                report += f"- {finding}\n"
-            report += "\n"
-        
-        if critical_findings['medium_priority']:
-            report += "⚠️ MEDIUM PRIORITY CONCERNS:\n"
-            for finding in critical_findings['medium_priority']:
-                report += f"- {finding}\n"
-            report += "\n"
-        
-        if critical_findings['low_priority']:
-            report += "ℹ️ LOW PRIORITY OBSERVATIONS:\n"
-            for finding in critical_findings['low_priority']:
-                report += f"- {finding}\n"
-            report += "\n"
-        
-        report += f"""
+            
+            critical_findings = self._identify_critical_findings(prior_art_analysis, academic_analysis, 
+                                                               overlap_analysis, vector_analysis)
+            
+            if critical_findings['high_priority']:
+                report += "🚨 HIGH PRIORITY RISKS:\n"
+                for finding in critical_findings['high_priority']:
+                    report += f"- {finding}\n"
+                report += "\n"
+            
+            if critical_findings['medium_priority']:
+                report += "⚠️ MEDIUM PRIORITY CONCERNS:\n"
+                for finding in critical_findings['medium_priority']:
+                    report += f"- {finding}\n"
+                report += "\n"
+            
+            if critical_findings['low_priority']:
+                report += "ℹ️ LOW PRIORITY OBSERVATIONS:\n"
+                for finding in critical_findings['low_priority']:
+                    report += f"- {finding}\n"
+                report += "\n"
+            
+            report += f"""
 STRATEGIC RECOMMENDATIONS
 =========================
 
 IMMEDIATE ACTIONS (Next 30 Days):
 """
-        
-        immediate_actions = self._generate_immediate_actions(risk_metrics, critical_findings)
-        for action in immediate_actions:
-            report += f"- {action}\n"
-        
-        report += f"""
+            
+            immediate_actions = self._generate_immediate_actions(risk_metrics, critical_findings)
+            for action in immediate_actions:
+                report += f"- {action}\n"
+            
+            report += f"""
 SHORT-TERM STRATEGY (Next 90 Days):
 """
-        
-        short_term = self._generate_short_term_strategy(risk_metrics, critical_findings)
-        for item in short_term:
-            report += f"- {item}\n"
-        
-        report += f"""
+            
+            short_term = self._generate_short_term_strategy(risk_metrics, critical_findings)
+            for item in short_term:
+                report += f"- {item}\n"
+            
+            report += f"""
 LONG-TERM STRATEGY (Next 12 Months):
 """
-        
-        long_term = self._generate_long_term_strategy(risk_metrics, critical_findings)
-        for item in long_term:
-            report += f"- {item}\n"
-        
-        report += f"""
+            
+            long_term = self._generate_long_term_strategy(risk_metrics, critical_findings)
+            for item in long_term:
+                report += f"- {item}\n"
+            
+            report += f"""
 COMPETITIVE INTELLIGENCE SUMMARY
 ================================
 
 Key Competitors Identified:
 """
-        
-        competitors = self._extract_competitor_intelligence(prior_art_analysis, academic_analysis)
-        for competitor in competitors:
-            report += f"- {competitor}\n"
-        
-        report += f"""
+            
+            competitors = self._extract_competitor_intelligence(prior_art_analysis, academic_analysis)
+            for competitor in competitors:
+                report += f"- {competitor}\n"
+            
+            report += f"""
 ACADEMIC LANDSCAPE SUMMARY
 ==========================
 
-Research Trends:
 """
-        
-        trends = self._extract_research_trends(academic_analysis)
-        for trend in trends:
-            report += f"- {trend}\n"
-        
-        report += f"""
-FILING STRATEGY RECOMMENDATIONS
-===============================
+            
+            research_trends = self._extract_research_trends(academic_analysis)
+            for trend in research_trends:
+                report += f"- {trend}\n"
+            
+            report += f"""
+FILING STRATEGY RECOMMENDATION
+==============================
 
-Based on comprehensive risk assessment:
+{self._generate_filing_strategy(risk_metrics, critical_findings)}
 
-"""
-        
-        filing_strategy = self._generate_filing_strategy(risk_metrics, critical_findings)
-        report += filing_strategy
-        
-        report += f"""
 COMMERCIAL VALUE ASSESSMENT
 ===========================
 
-Market Opportunity:
-"""
-        
-        commercial_value = self._assess_commercial_value(risk_metrics, critical_findings)
-        report += commercial_value
-        
-        report += f"""
-FINAL RECOMMENDATION
-===================
+{self._assess_commercial_value(risk_metrics, critical_findings)}
 
-"""
-        
-        final_recommendation = self._generate_final_recommendation(risk_metrics, critical_findings)
-        report += final_recommendation
-        
-        report += f"""
-CONFIDENCE LEVEL: {self._calculate_confidence_level(risk_metrics)}%
-PRIORITY LEVEL: {self._get_priority_level(risk_metrics)}
-NEXT REVIEW DATE: {(datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')}
+FINAL RECOMMENDATION
+====================
+
+{self._generate_final_recommendation(risk_metrics, critical_findings)}
+
+ASSESSMENT METRICS
+==================
+
+- Confidence Level: {self._calculate_confidence_level(risk_metrics)}/10
+- Priority Level: {self._get_priority_level(risk_metrics)}
+- Assessment Completeness: {'Complete' if all([prior_art_analysis, academic_analysis, overlap_analysis]) else 'Partial'}
 
 END OF CONSOLIDATED RISK ASSESSMENT
+==================================
 """
-        
-        return report
+            
+            return report
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN CONSOLIDATED RISK ASSESSMENT TOOL
+=========================================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during consolidated risk assessment. This may be due to:
+- Invalid input data format
+- Missing required analysis components
+- Text processing errors
+- Internal calculation errors
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- prior_art_analysis length: {len(prior_art_analysis) if prior_art_analysis else 0} characters
+- academic_analysis length: {len(academic_analysis) if academic_analysis else 0} characters
+- overlap_analysis length: {len(overlap_analysis) if overlap_analysis else 0} characters
+- vector_analysis length: {len(vector_analysis) if vector_analysis else 0} characters
+- final_review length: {len(final_review) if final_review else 0} characters
+- refined_claims length: {len(refined_claims) if refined_claims else 0} characters
+- legal_review length: {len(legal_review) if legal_review else 0} characters
+"""
+            logging.error(f"ConsolidatedRiskAssessmentTool error: {e}")
+            return error_msg
     
     def _calculate_risk_metrics(self, prior_art: str, academic: str, overlap: str, vector: str) -> Dict:
         """Calculate comprehensive risk metrics from all analyses"""

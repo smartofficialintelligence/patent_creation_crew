@@ -4,6 +4,7 @@ import os
 import re
 import logging
 from typing import List, Dict
+import shutil
 
 # Placeholders for any global variables or settings
 RESUME_MODE = False  # Set appropriately in your main config
@@ -247,3 +248,32 @@ RECOMMENDATIONS:
 """
     
     return report 
+
+def print_log_errors(logfile='patent_automation.log'):
+    """Print all error, fail, exception, and warning lines from the log file."""
+    keywords = [r'error', r'fail', r'exception', r'warning']
+    pattern = re.compile(r'(' + '|'.join(keywords) + r')', re.IGNORECASE)
+    try:
+        with open(logfile, 'r') as f:
+            for line in f:
+                if pattern.search(line):
+                    print(line.strip())
+    except FileNotFoundError:
+        print(f"Log file not found: {logfile}")
+    except Exception as e:
+        print(f"Error reading log file: {e}")
+
+def clear_outputs():
+    """Delete all files and subfolders in 'patent_output' and 'vector_cache', but keep the directories themselves."""
+    for folder in ['patent_output', 'vector_cache']:
+        if os.path.exists(folder):
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print(f'Failed to delete {file_path}. Reason: {e}')
+    print("All output and cache directories cleared.") 
