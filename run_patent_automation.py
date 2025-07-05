@@ -35,6 +35,7 @@ from crewai import Crew, Agent, Task
 # Import patent data and retry manager
 from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
 from core.retry_manager import RetryManager
+from core.incremental_processor import IncrementalProcessor
 
 def validate_environment():
     """Validate that required environment variables are set"""
@@ -224,7 +225,7 @@ def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str
     
     return formatted_description
 
-def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True):
+def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False):
     """Run patent automation for specified tiers using CrewAI YAML configuration"""
     
     logger.info("🤖 Starting Patent Automation System with CrewAI Native YAML Configuration")
@@ -232,17 +233,28 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     logger.info(f"Target Portfolio: {PATENT_CONFIG['target_portfolio_size']} patents")
     logger.info(f"Total Investment: ${PATENT_CONFIG['target_portfolio_size'] * PATENT_CONFIG['filing_cost_per_patent']:,}")
     logger.info(f"Expected Value: ~$90M (ROI: ~13,800x)")
+    logger.info(f"Incremental Processing: {'Enabled' if incremental else 'Disabled'}")
+    logger.info(f"Force Regenerate: {'Yes' if force_regenerate else 'No'}")
     
     # Validate environment
     if not validate_environment():
         return False
     
-    # Clear cache and outputs to prevent context size growth
-    if clear_cache:
-        clear_vector_cache()
-        clear_output_directories()
+    # Initialize incremental processor
+    incremental_processor = IncrementalProcessor()
+    if force_regenerate:
+        incremental_processor.force_regenerate_all()
+        logger.info("🔄 Force regeneration enabled - will recreate all assets")
     
-    # Setup output directories
+    # Clear cache and outputs to prevent context size growth (only if not incremental or force regenerate)
+    if clear_cache and (not incremental or force_regenerate):
+        clear_vector_cache()
+        if force_regenerate:
+            clear_output_directories()
+    elif incremental:
+        logger.info("🔄 Incremental mode: preserving existing outputs")
+    
+    # Setup output directories (create if they don't exist)
     setup_output_directories()
     
     # Initialize retry manager for tool execution recovery
@@ -288,6 +300,36 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         try:
             # Create tasks for this tier
             tasks = create_patent_tasks(patent_ideas, tier_key, agents)
+            
+            # Load tasks configuration for incremental processing
+            with open('config/tasks.yaml', 'r') as f:
+                tasks_config = yaml.safe_load(f)
+            
+            # Show incremental processing report
+            if incremental:
+                logger.info(f"📊 Analyzing existing assets for {tier_info['name']}...")
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config)
+                
+                # Filter tasks for incremental processing
+                original_task_count = len(tasks)
+                tasks = incremental_processor.filter_tasks_for_incremental_processing(tasks, patent_ideas)
+                filtered_task_count = len(tasks)
+                
+                if filtered_task_count < original_task_count:
+                    logger.info(f"🔄 Incremental processing: {filtered_task_count}/{original_task_count} tasks will be executed")
+                else:
+                    logger.info(f"🔄 All {original_task_count} tasks will be executed (no existing assets found)")
+            
+            if not tasks:
+                logger.info(f"⏭️ No tasks to execute for {tier_info['name']} (all assets exist)")
+                processing_results[tier_key] = {
+                    'success': True,
+                    'patents_processed': len(patent_ideas),
+                    'tier_info': tier_info,
+                    'result': "All assets already exist - no processing needed"
+                }
+                total_patents_processed += len(patent_ideas)
+                continue
             
             # Create crew with agents and tasks
             crew = Crew(
@@ -376,6 +418,12 @@ def main():
                        help='Run in test mode (limited patents)')
     parser.add_argument('--no-clear-cache', action='store_true',
                        help='Do not clear vector cache and output directories (use with caution)')
+    parser.add_argument('--no-incremental', action='store_true',
+                       help='Disable incremental processing (recreate all assets)')
+    parser.add_argument('--force-regenerate', action='store_true',
+                       help='Force regeneration of all assets (overrides incremental mode)')
+    parser.add_argument('--show-status', action='store_true',
+                       help='Show status of existing assets without running automation')
     
     args = parser.parse_args()
     
@@ -386,8 +434,36 @@ def main():
             args.max_per_tier = 1
             logger.info("   Auto-limiting to 1 patent per tier for testing")
     
+    # Handle status-only mode
+    if args.show_status:
+        logger.info("📊 STATUS MODE - Showing asset status without running automation")
+        incremental_processor = IncrementalProcessor()
+        
+        # Load tasks configuration
+        with open('config/tasks.yaml', 'r') as f:
+            tasks_config = yaml.safe_load(f)
+        
+        # Show status for all tiers
+        for tier_key in ['tier_1', 'tier_2', 'tier_3']:
+            if tier_key in PATENT_IDEAS:
+                patent_ideas = PATENT_IDEAS[tier_key]
+                if args.max_per_tier:
+                    patent_ideas = patent_ideas[:args.max_per_tier]
+                
+                tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
+                logger.info(f"\n🎯 {tier_info['name']} Status:")
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config)
+        
+        return True
+    
     # Run the automation
-    success = run_patent_automation(args.tier, args.max_per_tier, clear_cache=not args.no_clear_cache)
+    success = run_patent_automation(
+        args.tier, 
+        args.max_per_tier, 
+        clear_cache=not args.no_clear_cache,
+        incremental=not args.no_incremental,
+        force_regenerate=args.force_regenerate
+    )
     
     if success:
         logger.info("🎉 Patent automation completed successfully!")

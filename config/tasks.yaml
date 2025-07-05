@@ -269,6 +269,54 @@ cover_sheet:
   agent: cover_sheet_specialist
   context: [prior_art_research, claims_refinement, patent_document, legal_review, final_review]
 
+colab_demo_generation:
+  description: |
+    Generate interactive Google Colab demo notebook for patent demonstration:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    DEMO REQUIREMENTS:
+    1. Interactive Google Colab notebook format
+    2. Clear demonstration of patent's core technology
+    3. Working code examples and implementations
+    4. Educational content explaining the innovation
+    5. Performance benchmarks and comparisons
+    6. Visualizations and interactive elements
+    7. Installation and setup instructions
+    8. Usage examples and best practices
+    
+    PATENT DATA:
+    - Description: {description}
+    - Technical Features: {technical_features}
+    - Market Applications: {market_applications}
+    - Key Claims: {claims_list}
+    - Differentiation: {differentiation}
+    
+    DEMO FOCUS:
+    - Core algorithm implementation
+    - Performance demonstrations
+    - Real-world use case examples
+    - Comparison with existing solutions
+    - Technical advantages visualization
+    - Interactive experimentation capabilities
+    
+    Create an engaging, educational demo that showcases the patent's value.
+  expected_output: |
+    Interactive Google Colab notebook including:
+    - Complete setup and installation instructions
+    - Core algorithm implementation and demonstration
+    - Performance benchmarks and comparisons
+    - Interactive visualizations and examples
+    - Real-world use case demonstrations
+    - Educational content explaining the innovation
+    - Code examples and best practices
+    - Technical advantages and differentiators
+  output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
+  output_file: "patent_output/{tier}/{id}_colab_demo.ipynb"
+  agent: patent_writer
+  context: [prior_art_research, claims_refinement, patent_document]
+
 # Task generation configuration
 task_generation:
   variable_mapping:

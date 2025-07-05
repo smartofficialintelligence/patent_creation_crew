@@ -1,5 +1,5 @@
 # Agent Configuration for Patent Automation System
-# Using CrewAI's native YAML format
+# Using CrewAI's native YAML format - OPTIMIZED VERSION
 
 patent_researcher:
   role: "Senior Patent Research Specialist"
@@ -22,13 +22,13 @@ patent_researcher:
     - consolidated_risk_assessment_tool
     - vector_based_overlap_analysis_tool
   verbose: true
-  max_iter: 3
+  max_iter: 5  # Increased for comprehensive research
   memory: true
   allow_delegation: false
   llm_config:
     config_list:
-      - model: "gpt-4o"
-    temperature: 0.7
+      - model: "gpt-4o"  # Best for complex research and analysis
+    temperature: 0.3  # Lower for more precise, factual research
 
 patent_writer:
   role: "Senior Patent Document Specialist"
@@ -47,10 +47,15 @@ patent_writer:
     detail with legal protection.
   tools:
     - patent_document_tool
+    - colab_demo_generator_tool
   verbose: true
-  max_iter: 3
+  max_iter: 4  # Increased for comprehensive document creation
   memory: true
   allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"  # Best for complex document generation
+    temperature: 0.4  # Balanced creativity and precision for writing
 
 claims_specialist:
   role: "Patent Claims Strategist"
@@ -70,9 +75,13 @@ claims_specialist:
   tools:
     - smart_claim_refinement_tool
   verbose: true
-  max_iter: 3
+  max_iter: 6  # Higher for iterative claim refinement
   memory: true
   allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"  # Best for strategic thinking and precision
+    temperature: 0.2  # Very low for precise legal language
 
 legal_reviewer:
   role: "Patent Portfolio Legal Strategist"
@@ -91,9 +100,13 @@ legal_reviewer:
     the intersection of technical innovation, legal protection, and commercial value.
   tools: []
   verbose: true
-  max_iter: 2
+  max_iter: 3  # Moderate for review tasks
   memory: true
   allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"  # Best for legal analysis
+    temperature: 0.1  # Very low for legal precision
 
 final_reviewer:
   role: "Independent Patent Quality Assurance Specialist"
@@ -114,9 +127,13 @@ final_reviewer:
   tools:
     - final_review_and_improvement_tool
   verbose: true
-  max_iter: 3
+  max_iter: 4  # Moderate for review and improvement
   memory: true
   allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"  # Best for comprehensive review
+    temperature: 0.3  # Low for analytical review
 
 cover_sheet_specialist:
   role: "USPTO Filing Specialist"
@@ -137,9 +154,13 @@ cover_sheet_specialist:
   tools:
     - provisional_cover_sheet_tool
   verbose: true
-  max_iter: 2
+  max_iter: 2  # Low for straightforward form completion
   memory: true
   allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"  # High quality for patent submission forms
+    temperature: 0.1  # Very low for precise form completion
 
 # Tool mapping configuration
 tool_mapping:
@@ -151,4 +172,5 @@ tool_mapping:
   smart_claim_refinement_tool: "SmartClaimRefinementTool"
   final_review_and_improvement_tool: "FinalReviewAndImprovementTool"
   provisional_cover_sheet_tool: "ProvisionalCoverSheetTool"
-  patent_valuation_tool: "PatentValuationTool" 
+  patent_valuation_tool: "PatentValuationTool"
+  colab_demo_generator_tool: "ColabDemoGeneratorTool" 

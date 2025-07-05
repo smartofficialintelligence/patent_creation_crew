@@ -75,7 +75,12 @@ method-patent/
    python scripts/manage_context.py --status
    ```
 
-4. **Run automation**:
+4. **Check incremental processing status**:
+   ```bash
+   python scripts/incremental_manager.py --status
+   ```
+
+5. **Run automation** (incremental by default):
    ```bash
    python run_patent_automation.py
    ```
@@ -104,6 +109,52 @@ python run_patent_automation.py --no-clear-cache
 The system now uses `gpt-4o` by default (128k token limit). To change models:
 - Set environment variable: `export OPENAI_MODEL=gpt-4o-mini`
 - Or modify `config/agents.yaml` to specify different models per agent
+
+### Incremental Processing
+The system now supports incremental processing to avoid recreating existing assets:
+
+1. **Check asset status**:
+   ```bash
+   python scripts/incremental_manager.py --status
+   ```
+
+2. **Show only missing assets**:
+   ```bash
+   python scripts/incremental_manager.py --missing-only
+   ```
+
+3. **Show task completion statistics**:
+   ```bash
+   python scripts/incremental_manager.py --task-stats
+   ```
+
+4. **Force regenerate specific asset**:
+   ```bash
+   python scripts/incremental_manager.py --force-regenerate patent_001 colab_demo_generation
+   ```
+
+5. **Force regenerate all assets**:
+   ```bash
+   python scripts/incremental_manager.py --force-regenerate-all
+   ```
+
+6. **Run with incremental processing disabled**:
+   ```bash
+   python run_patent_automation.py --no-incremental
+   ```
+
+7. **Run with force regeneration**:
+   ```bash
+   python run_patent_automation.py --force-regenerate
+   ```
+
+### Incremental Processing Features
+- **Smart asset detection**: Automatically detects existing, valid output files
+- **File validation**: Validates file size, format, and content quality
+- **Selective execution**: Only runs tasks for missing or invalid assets
+- **Force regeneration**: Can force regeneration of specific or all assets
+- **Completion tracking**: Tracks completion percentage per patent and task type
+- **Status reporting**: Comprehensive reports on what exists vs. what's missing
 
 ### Tool Execution Failures
 The system now includes comprehensive retry and recovery mechanisms:
