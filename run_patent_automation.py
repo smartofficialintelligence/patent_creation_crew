@@ -351,6 +351,7 @@ def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str
         'market_applications': ', '.join(patent_idea.get('market_applications', ['AI optimization'])),
         'technical_features': ', '.join(patent_idea.get('technical_features', [])),
         'differentiation': patent_idea.get('differentiation', 'TBD'),
+        'tier': tier,
         'tier_name': PATENT_CONFIG['portfolio_tiers'].get(tier, {}).get('name', 'Unknown Tier'),
         'description_length': len(patent_idea.get('description', '').split()),
         'claims_count': len(claims_to_use)
@@ -527,7 +528,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     if progress_tracker:
                         progress_tracker.complete_task("tier_processing", patent['id'], success=True)
                         progress_tracker.complete_patent(patent['id'])
-                
+            
                 logger.info(f"✅ Successfully processed {tier_info['name']}")
                 processing_results[tier_key] = {
                     'success': True,

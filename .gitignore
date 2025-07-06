@@ -104,5 +104,5 @@ coverage.xml
 .dmypy.json
 
 # Patent system cache/model files
-vector_cache/
+vector_cache/ 
 smart_cache/ 
