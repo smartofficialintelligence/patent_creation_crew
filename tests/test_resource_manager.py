@@ -18,7 +18,7 @@ def test_resource_manager():
     try:
         # Test imports
         print("📦 Testing imports...")
-        from core.resource_manager import (
+        from lib.resource_manager import (
             ResourceManager, 
             ProgressTracker, 
             ErrorHandler,

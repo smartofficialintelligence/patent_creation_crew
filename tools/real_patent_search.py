@@ -10,7 +10,7 @@ from pydantic import BaseModel, validator
 from crewai.tools import BaseTool
 from datetime import datetime
 import json
-from core.langsmith_utils import trace_function
+from lib.langsmith_utils import trace_function
 
 # Copy validate_patent_dict from the main file
 

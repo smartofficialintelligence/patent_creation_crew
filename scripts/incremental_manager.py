@@ -13,8 +13,8 @@ from pathlib import Path
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.incremental_processor import IncrementalProcessor
-from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
+from lib.incremental_processor import IncrementalProcessor
+from lib.patent_data import PATENT_IDEAS, PATENT_CONFIG
 import yaml
 
 # Configure logging

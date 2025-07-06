@@ -5,8 +5,8 @@ from typing import Dict, Any
 from crewai.tools import BaseTool
 from pydantic import BaseModel
 
-# Import from core modules
-from core.validation import validate_patent_dict
+# Import from lib modules
+from lib.validation import validate_patent_dict
 
 import logging
 from typing import Dict, List, Any

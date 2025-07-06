@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from core.utils import aggregate_portfolio_valuation
+from lib.utils import aggregate_portfolio_valuation
 
 def extract_valuation_from_report(report_content: str) -> dict:
     """Manually extract valuation data from the report content"""

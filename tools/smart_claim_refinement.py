@@ -6,8 +6,8 @@ from typing import Dict, List, Any
 from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 
-# Import from core modules
-from core.validation import validate_patent_dict
+# Import from lib modules
+from lib.validation import validate_patent_dict
 
 class SmartClaimRefinementInput(BaseModel):
     patent_id: str

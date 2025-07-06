@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import json
-from core.langsmith_utils import trace_function
+from lib.langsmith_utils import trace_function
 
 class PatentValuationInput(BaseModel):
     patent_id: str

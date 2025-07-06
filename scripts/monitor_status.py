@@ -12,7 +12,7 @@ from datetime import datetime
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.resource_manager import get_status_report, resource_manager
+from lib.resource_manager import get_status_report, resource_manager
 
 def main():
     """Show current status of the patent automation system"""

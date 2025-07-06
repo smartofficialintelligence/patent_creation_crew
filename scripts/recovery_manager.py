@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 # Import the retry manager
-from core.retry_manager import RetryManager, RetryStatus
+from lib.retry_manager import RetryManager, RetryStatus
 
 # Configure logging
 logging.basicConfig(

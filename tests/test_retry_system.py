@@ -13,7 +13,7 @@ from pathlib import Path
 # Add the project root to the path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.retry_manager import RetryManager, RetryStatus
+from lib.retry_manager import RetryManager, RetryStatus
 from scripts.recovery_manager import RecoveryManager
 
 # Configure logging

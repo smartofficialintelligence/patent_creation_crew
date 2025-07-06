@@ -58,11 +58,11 @@ logger = logging.getLogger(__name__)
 from crewai import Crew, Agent, Task
 
 # Import patent data and retry manager
-from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
-from core.retry_manager import RetryManager
-from core.incremental_processor import IncrementalProcessor
-from core.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
-from core.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
+from lib.patent_data import PATENT_IDEAS, PATENT_CONFIG
+from lib.retry_manager import RetryManager
+from lib.incremental_processor import IncrementalProcessor
+from lib.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
+from lib.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
 
 @trace_function(name="validate_environment")
 def validate_environment():
@@ -412,7 +412,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         logger.error(f"❌ Failed to initialize monitoring: {e}")
         logger.warning("⚠️ Continuing without resource monitoring - progress tracking will be limited")
         # Set up a minimal progress tracker to prevent None errors
-        from core.resource_manager import ProgressTracker
+        from lib.resource_manager import ProgressTracker
         progress_tracker = ProgressTracker(total_patents, total_tasks)
     
     # Process each tier
@@ -586,7 +586,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         logger.info("🔍 Collecting valuation results from processed patents...")
         
         # Import the utility functions
-        from core.utils import collect_valuation_results_from_outputs, aggregate_portfolio_valuation
+        from lib.utils import collect_valuation_results_from_outputs, aggregate_portfolio_valuation
         
         # Collect valuation data from all output files
         valuation_files = []
@@ -697,7 +697,7 @@ def main():
     
     # Configure resource management if monitoring is enabled
     if not args.no_monitoring:
-        from core.resource_manager import resource_manager
+        from lib.resource_manager import resource_manager
         resource_manager.max_memory_gb = args.max_memory
         resource_manager.max_cpu_percent = args.max_cpu
         resource_manager.max_disk_gb = args.max_disk

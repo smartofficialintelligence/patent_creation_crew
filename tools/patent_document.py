@@ -7,9 +7,9 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import logging
 
-# Import from core modules
-from core.validation import validate_patent_dict
-from core.langsmith_utils import trace_function
+# Import from lib modules
+from lib.validation import validate_patent_dict
+from lib.langsmith_utils import trace_function
 
 # Configuration for the patent portfolio
 PATENT_CONFIG = {

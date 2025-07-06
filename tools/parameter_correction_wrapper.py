@@ -6,7 +6,7 @@ Automatically corrects common parameter name mistakes before calling tools.
 import logging
 from typing import Dict, Any, Callable
 from crewai.tools import BaseTool
-from core.tool_parameter_mapping import validate_tool_parameters, get_tool_parameter_guide
+from lib.tool_parameter_mapping import validate_tool_parameters, get_tool_parameter_guide
 from pydantic import Field
 
 logger = logging.getLogger(__name__)

@@ -14,8 +14,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from langchain_openai import ChatOpenAI
-from core.langsmith_utils import trace_function
-from core.validation import validate_patent_dict
+from lib.langsmith_utils import trace_function
+from lib.validation import validate_patent_dict
 import openai
 from openai import OpenAI
 

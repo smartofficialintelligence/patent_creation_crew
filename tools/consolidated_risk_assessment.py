@@ -7,8 +7,8 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import logging
 
-# Import from core modules
-from core.validation import validate_patent_dict
+# Import from lib modules
+from lib.validation import validate_patent_dict
 
 class ConsolidatedRiskAssessmentInput(BaseModel):
     patent_id: str

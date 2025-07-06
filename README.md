@@ -365,7 +365,7 @@ LangSmith settings can be configured in `config/langsmith_config.yaml`:
 ### Usage Examples
 
 ```python
-from core.langsmith_utils import trace_function, log_agent_execution
+from lib.langsmith_utils import trace_function, log_agent_execution
 
 @trace_function(name="my_function")
 def my_function():

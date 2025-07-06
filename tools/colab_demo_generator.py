@@ -6,8 +6,8 @@ import logging
 from datetime import datetime
 import nbformat
 
-# Import from core modules
-from core.validation import validate_patent_dict
+# Import from lib modules
+from lib.validation import validate_patent_dict
 
 # --- New helper functions for dynamic claim analysis and editorial review ---
 def select_claim_to_demonstrate(key_claims: List[str]) -> str:

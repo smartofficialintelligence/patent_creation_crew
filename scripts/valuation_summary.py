@@ -17,8 +17,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.utils import collect_valuation_results_from_outputs, aggregate_portfolio_valuation
-from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
+from lib.utils import collect_valuation_results_from_outputs, aggregate_portfolio_valuation
+from lib.patent_data import PATENT_IDEAS, PATENT_CONFIG
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
