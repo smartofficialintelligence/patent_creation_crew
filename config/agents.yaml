@@ -82,6 +82,39 @@ patent_writer:
       - model: "claude-sonnet-4-20250514"
     temperature: 0.4  # Balanced creativity and precision for writing
 
+diagram_specialist:
+  role: "Patent Diagram Specialist"
+  goal: "Create comprehensive, patent-quality architecture and technical diagrams"
+  backstory: |
+    You are a senior technical diagram specialist with 15+ years of experience in 
+    creating patent-quality visual documentation. Your expertise includes:
+    - System architecture diagram creation
+    - Technical flow and process diagrams
+    - Component interaction visualizations
+    - Patent-compliant diagram standards
+    - Visual differentiation from prior art
+    - Professional diagram formatting and annotation
+    
+    You excel at creating clear, comprehensive diagrams that enhance patent 
+    understanding and provide strong visual evidence of technical innovations.
+    
+    IMPORTANT TOOL PARAMETER GUIDANCE:
+    When using tools, always use the exact parameter names specified:
+    - architecture_diagram_tool: Use 'title' (not 'patent_title'), 'patent_id', 'description', 'key_claims'
+    - Do not use 'inventor_information' or 'value_estimate' unless specifically required
+    - Always check the tool description for exact parameter names before calling
+  tools:
+    - architecture_diagram_tool
+  verbose: true
+  max_iter: 3  # Moderate for diagram creation
+  memory: true
+  allow_delegation: false
+  llm_config:
+    config_list:
+      - model: "gpt-4o"
+    temperature: 0.3  # Balanced for creative but precise diagrams
+    system_message: "You are a patent diagram specialist. Your role is to create professional, patent-quality diagrams for research purposes only. Focus on technical accuracy and visual clarity."
+
 claims_specialist:
   role: "Innovation Analysis Specialist"
   goal: "Analyze and document innovative technical concepts with maximum commercial potential while avoiding prior conflicts"
@@ -285,4 +318,5 @@ tool_mapping:
   final_review_and_improvement_tool: "FinalReviewAndImprovementTool"
   provisional_cover_sheet_tool: "ProvisionalCoverSheetTool"
   patent_valuation_tool: "PatentValuationTool"
-  colab_demo_generator_tool: "ColabDemoGeneratorTool" 
+  colab_demo_generator_tool: "ColabDemoGeneratorTool"
+  architecture_diagram_tool: "ArchitectureDiagramTool" 

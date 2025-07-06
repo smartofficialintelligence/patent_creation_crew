@@ -174,6 +174,14 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ColabDemoGeneratorTool()
                 tools.append(wrap_tool_with_parameter_correction('colab_demo_generator_tool', tool_instance))
+            elif tool_name == 'architecture_diagram_tool':
+                from tools.architecture_diagram import ArchitectureDiagramTool
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ArchitectureDiagramTool()
+                tools.append(wrap_tool_with_parameter_correction('architecture_diagram_tool', tool_instance))
+            else:
+                logger.warning(f"Unknown tool: {tool_name}")
+                continue
         # Create agent
         agent = Agent(
             role=agent_config['role'],

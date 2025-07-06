@@ -177,6 +177,72 @@ patent_document:
   agent: patent_writer
   context: [prior_art_research, claims_refinement]
 
+architecture_diagram:
+  description: |
+    Create comprehensive, patent-quality architecture diagrams:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    DIAGRAM REQUIREMENTS:
+    1. System architecture overview diagram
+    2. Component interaction flow diagrams
+    3. Data flow and processing diagrams
+    4. Agent coordination and communication diagrams
+    5. Technical feature visualization diagrams
+    6. Prior art differentiation diagrams
+    7. Performance optimization diagrams
+    
+    DIAGRAM QUALITY STANDARDS:
+    - Patent-compliant professional formatting
+    - Clear technical accuracy and detail
+    - Visual differentiation from prior art
+    - Comprehensive coverage of technical features
+    - Professional annotations and labels
+    - Suitable for patent examiner review
+    
+    PATENT DATA:
+    - Description: {description}
+    - Technical Features: {technical_features}
+    - Market Applications: {market_applications}
+    - Key Claims: {claims_list}
+    - Differentiation: {differentiation}
+    
+    DIAGRAM TYPES:
+    - System architecture overview (high-level system design)
+    - Component interaction diagrams (detailed component relationships)
+    - Data flow diagrams (information and data processing flows)
+    - Agent coordination networks (multi-agent system interactions)
+    - Technical feature visualizations (key technical innovations)
+    - Performance optimization diagrams (system performance characteristics)
+    - Prior art differentiation (visual comparison with existing solutions)
+    
+    Create professional, patent-quality diagrams that clearly illustrate 
+    the invention's technical architecture and differentiate from prior art.
+    
+    TOOL PARAMETERS:
+    Use architecture_diagram_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims from refined claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+  expected_output: |
+    Comprehensive architecture diagram package including:
+    - System architecture overview diagrams (PNG/SVG)
+    - Component interaction and flow diagrams
+    - Data processing and memory architecture diagrams
+    - Agent coordination and communication diagrams
+    - Technical feature visualization diagrams
+    - Prior art differentiation diagrams
+    - Performance optimization diagrams
+    - Professional diagram documentation and legends
+  output_pydantic: tools.architecture_diagram.ArchitectureDiagramInput
+  output_file: "patent_output/{tier}/{id}_architecture_diagrams.md"
+  agent: diagram_specialist
+  context: [prior_art_research, claims_refinement, patent_document]
+
 legal_review:
   description: |
     Comprehensive legal review and portfolio strategy analysis:
