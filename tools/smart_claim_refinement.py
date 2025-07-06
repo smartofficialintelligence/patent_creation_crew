@@ -123,7 +123,7 @@ class SmartClaimRefinementTool(BaseTool):
             ]
             self.log_claim_refinement(patent_id, original_claims, refined_claims)
 
-            INTELLIGENT CLAIM REFINEMENT REPORT
+INTELLIGENT CLAIM REFINEMENT REPORT
 ==================================
 
 Patent ID: {patent_id}

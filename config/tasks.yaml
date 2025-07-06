@@ -33,14 +33,15 @@ prior_art_research:
     for claim refinement and prosecution strategy.
     
     TOOL PARAMETERS:
-    Use enhanced_prior_art_search_tool with these exact parameters:
+    Use real_patent_search_tool with these exact parameters:
     - patent_id: {id}
     - title: {title}
     - description: {description}
     - key_claims: [list of claims]
     - technical_features: {technical_features}
     - market_applications: {market_applications}
-    - value_estimate: {value_estimate}
+    - differentiation: {differentiation}
+    - tier: {tier}
   expected_output: |
     Comprehensive prior art analysis including:
     - Real patent data from Lens Patents API
@@ -50,7 +51,7 @@ prior_art_research:
     - Differentiation strategy recommendations
     - Risk assessment and mitigation strategiesc
     - Specific claim refinement suggestions
-  output_pydantic: tools.enhanced_prior_art_search.EnhancedPriorArtSearchInput
+  output_pydantic: tools.real_patent_search.RealPatentSearchInput
   output_file: "patent_output/{tier}/{id}_prior_art_analysis.md"
   agent: patent_researcher
 
@@ -228,6 +229,7 @@ architecture_diagram:
     - key_claims: [list of claims from refined claims]
     - technical_features: {technical_features}
     - market_applications: {market_applications}
+    - tier: {tier}
   expected_output: |
     Comprehensive architecture diagram package including:
     - System architecture overview diagrams (PNG/SVG)
@@ -342,7 +344,7 @@ editorial_review:
   description: |
     Conduct final editorial review of patent document and provide specific alterations for integration: 
     
-    PATENT: {title} (ID: {id}) 
+    PATENT: {title} (ID: {id})
     
     EDITORIAL OBJECTIVES: 
     1. Review patent document for clarity, completeness, and quality 
@@ -354,7 +356,7 @@ editorial_review:
     7. VERIFY that the document contains ACTUAL content, not just descriptions or summaries
     8. Consider associate editor feedback and evaluate each suggestion
     
-    REVIEW SCOPE: 
+    REVIEW SCOPE:
     - Patent document structure and formatting 
     - Technical description clarity and completeness 
     - Claims integration and quality 
@@ -633,61 +635,50 @@ colab_demo_generation:
 
 colab_demo_editorial_review:
   description: |
-    Conduct editorial review of Colab demo notebook as patent demonstration component:
+    Provide editorial review and improvement suggestions for the Colab demo notebook:
     
     PATENT: {title} (ID: {id})
     TIER: {tier} ({tier_name})
     
-    PATENT DEMONSTRATION CONTEXT:
-    This Colab notebook serves as a critical component of the patent submission package, 
-    designed to demonstrate the patent's core technology, provide evidence of enablement, 
-    and showcase the invention's novelty and non-obviousness to patent examiners and stakeholders.
+    EDITORIAL REVIEW REQUIREMENTS:
+    1. Review Colab demo notebook for quality and completeness
+    2. Identify potential improvements and enhancement opportunities
+    3. Provide constructive feedback and suggestions for consideration
+    4. Assess technical accuracy and educational value
+    5. Evaluate code quality and best practices
+    6. Suggest improvements for user experience and accessibility
+    7. Offer insights on demonstration effectiveness
     
-    REVIEW REQUIREMENTS:
-    1. Comprehensive review of patent demonstration effectiveness and enablement evidence
-    2. Assessment of claim support and technical feature implementation
-    3. Validation of performance benchmarks and patent advantages
-    4. Evaluation of prior art differentiation and novelty demonstration
-    5. Review of enablement clarity for skilled artisan reproduction
-    6. Assessment of professional presentation for patent submission
-    7. Verification of technical disclosure supporting patent scope
-    8. Evaluation of comparative analysis and real-world applicability
+    REVIEW FOCUS:
+    - Code quality and best practices
+    - Educational content clarity
+    - Performance demonstration accuracy
+    - Interactive functionality
+    - User experience and accessibility
+    - Technical accuracy and completeness
+    - Patent claim demonstration effectiveness
     
-    PATENT DEMONSTRATION REVIEW FOCUS:
-    - Effectiveness in supporting and demonstrating patent claims
-    - Completeness of enablement evidence for skilled artisan reproduction
-    - Accuracy of performance validation and patent advantage demonstration
-    - Clarity of prior art differentiation and novelty evidence
-    - Professional quality suitable for patent examiner review
-    - Technical disclosure adequacy supporting patent scope
-    - Comparative analysis effectiveness showing invention advantages
-    - Real-world applicability and use case validation
+    FEEDBACK APPROACH:
+    - Provide thoughtful, constructive suggestions
+    - Focus on specific, actionable improvements
+    - Consider both technical and educational aspects
+    - Offer alternative approaches where beneficial
+    - Maintain professional, supportive tone
+    - Highlight both strengths and areas for improvement
     
-    Provide specific alterations that strengthen the notebook's effectiveness 
-    as a patent demonstration component and submission evidence.
-    
-    TOOL PARAMETERS:
-    Use final_review_and_improvement_tool with these exact parameters:
-    - patent_id: {id}
-    - title: {title}
-    - description: {description}
-    - key_claims: [list of claims]
-    - technical_features: {technical_features}
-    - market_applications: {market_applications}
-    - differentiation: {differentiation}
-    - review_type: "colab_demo"
-    - content_to_review: [content from colab demo generation]
+    Your feedback will be considered by the patent writer, who will evaluate each suggestion 
+    against their professional judgment and strategic objectives. Provide valuable insights 
+    that support the improvement process while respecting the patent writer's final authority.
   expected_output: |
-    Patent demonstration editorial review report including:
-    - Claim support enhancements and patent claim demonstration improvements
-    - Enablement evidence strengthening and skilled artisan guidance refinements
-    - Performance validation improvements and patent advantage clarifications
-    - Prior art differentiation enhancements and novelty demonstration refinements
-    - Professional presentation improvements for patent submission
-    - Technical disclosure adequacy enhancements supporting patent scope
-    - Comparative analysis improvements showing invention advantages
-    - Real-world applicability validation and use case refinements
-    - Clear integration instructions for patent demonstration improvements
+    Colab demo editorial feedback report including:
+    - Initial quality assessment and observations
+    - Specific improvement suggestions and recommendations
+    - Code quality and best practice enhancement ideas
+    - Educational content clarity improvement suggestions
+    - Performance demonstration accuracy recommendations
+    - Interactive functionality enhancement ideas
+    - User experience and accessibility optimization suggestions
+    - Professional, constructive feedback for patent writer consideration
   output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
   output_file: "patent_output/{tier}/{id}_colab_demo_editorial_review.md"
   agent: editor
@@ -695,41 +686,48 @@ colab_demo_editorial_review:
 
 colab_demo_integration:
   description: |
-    Integrate editorial feedback into the Colab demo notebook:
+    Integrate editorial feedback and create final Colab demo notebook:
     
     PATENT: {title} (ID: {id})
     TIER: {tier} ({tier_name})
     
     INTEGRATION REQUIREMENTS:
-    1. Review editorial feedback and integrate agreed-upon improvements
-    2. Update code implementations based on feedback
-    3. Enhance educational content and explanations
-    4. Improve performance benchmarks and visualizations
-    5. Refine interactive elements and user experience
-    6. Update setup instructions and documentation
-    7. Ensure patent technology is accurately demonstrated
-    8. Document integration decisions and reasoning
+    1. Review editorial feedback for Colab demo notebook
+    2. Evaluate each suggestion against technical and strategic objectives
+    3. Integrate agreed-upon improvements into the demo notebook
+    4. Document integration decisions and reasoning
+    5. Ensure final notebook meets quality standards
+    6. Maintain patent demonstration effectiveness
+    7. Preserve core technical accuracy and educational value
     
     INTEGRATION FOCUS:
-    - Code quality improvements and corrections
+    - Code quality and best practice improvements
     - Educational content enhancements
     - Performance demonstration refinements
     - Interactive functionality improvements
-    - Documentation and setup clarifications
-    - Patent technology representation accuracy
-    - User experience optimizations
+    - User experience and accessibility enhancements
+    - Technical accuracy verification
+    - Patent claim demonstration optimization
     
-    INSTRUCTIONS: "Review this editorial review and integrate the feedback you agree with."
+    INTEGRATION APPROACH:
+    - Carefully evaluate each editorial suggestion
+    - Accept improvements that enhance quality and effectiveness
+    - Reject suggestions that compromise technical accuracy or strategic objectives
+    - Document reasoning for all integration decisions
+    - Ensure final notebook maintains patent demonstration value
+    - Preserve core technical innovations and educational content
+    
+    Incorporate editorial feedback to create the final, enhanced Colab demo notebook.
     
     TOOL PARAMETERS:
     Use colab_demo_generator_tool with these exact parameters:
     - patent_id: {id}
     - title: {title}
     - description: {description}
-    - key_claims: [list of claims from refined claims]
+    - key_claims: [list of claims]
     - technical_features: {technical_features}
     - market_applications: {market_applications}
-    - differentiation: {differentiation}
+    - tier: {tier}
     - editorial_feedback: [content from colab demo editorial review]
   expected_output: |
     Final integrated Colab demo notebook including:

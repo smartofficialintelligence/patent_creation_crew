@@ -494,7 +494,6 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             # Run the crew with error handling
             try:
                 result = crew.kickoff()
-                
                 # Mark all patents in this tier as completed
                 for patent in patent_ideas:
                     if progress_tracker:
@@ -509,7 +508,6 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     'result': result
                 }
                 total_patents_processed += len(patent_ideas)
-                
             except Exception as e:
                 # Handle crew execution errors
                 if error_handler.handle_error(e, "crew_execution", tier_key):

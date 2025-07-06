@@ -90,7 +90,7 @@ class RealPatentSearchTool(BaseTool):
     @trace_function(name="RealPatentSearchTool._run")
     def _run(self, patent_id: str = None, title: str = None, description: str = None, key_claims: List[str] = None,
              technical_features: List[str] = None, market_applications: List[str] = None, 
-             differentiation: str = None, keywords: List[str] = None, query: str = None) -> str:
+             differentiation: str = None, keywords: List[str] = None, query: str = None, tier: str = None) -> str:
         """Performs real patent searches using Lens.org by default, with optional EPO OPS for legal/family mapping or as fallback."""
         try:
             print("[DEBUG] RealPatentSearchTool _run called")
@@ -109,6 +109,7 @@ class RealPatentSearchTool(BaseTool):
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
             differentiation = differentiation or "No differentiation specified"
+            tier = tier or "tier_1"  # Default to tier_1 if not specified
             
             # All inputs are guaranteed valid by Pydantic
             validated_data = {
@@ -120,7 +121,8 @@ class RealPatentSearchTool(BaseTool):
                 'market_applications': market_applications,
                 'differentiation': differentiation,
                 'implementation_complexity': 'Medium',
-                'prior_art_risk': 'Medium'
+                'prior_art_risk': 'Medium',
+                'tier': tier
             }
             search_queries = self._generate_search_queries(title, description, key_claims)
             all_results = []
@@ -144,11 +146,7 @@ class RealPatentSearchTool(BaseTool):
             analyzed_results = self._analyze_search_results(all_results, validated_data)
 
             # Save raw search results for manual review
-            tier = validated_data.get('tier', None)
-            if tier:
-                out_dir = os.path.join('patent_output', tier)
-            else:
-                out_dir = 'patent_output'
+            out_dir = os.path.join('patent_output', tier)
             os.makedirs(out_dir, exist_ok=True)
             out_file = os.path.join(out_dir, f"{patent_id}_patent_search_results.json")
             try:

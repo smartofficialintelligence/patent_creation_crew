@@ -192,7 +192,7 @@ class PatentDocumentTool(BaseTool):
                 'market_applications': market_applications,
                 'differentiation': differentiation
             }
-            
+
             if REPORT_TYPE == 'summary':
                 template = f"""
 PATENT ANALYSIS DOCUMENT (SUMMARY)

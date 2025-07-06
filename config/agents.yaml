@@ -318,5 +318,5 @@ tool_mapping:
   final_review_and_improvement_tool: "FinalReviewAndImprovementTool"
   provisional_cover_sheet_tool: "ProvisionalCoverSheetTool"
   patent_valuation_tool: "PatentValuationTool"
-  colab_demo_generator_tool: "ColabDemoGeneratorTool"
+  colab_demo_generator_tool: "ColabDemoGeneratorTool" 
   architecture_diagram_tool: "ArchitectureDiagramTool" 

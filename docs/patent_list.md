@@ -55,7 +55,7 @@ patents:
     original_patents:
       - P000
 
-  - id: NEW-P001
+  - id: P001
     title: Unified Semantic Agent Architecture & Coordination
     description: Unified system for hierarchical, swarm-based, and temporal semantic agent coordination, enabling complex problem decomposition, emergent optimization, and time-aware reasoning.
     key_claims:
@@ -106,7 +106,7 @@ patents:
       - P010
       - P011
 
-  - id: NEW-P002
+  - id: P002
     title: Semantic Memory & Tool Integration Framework
     description: Framework for integrating visual and other tools with semantic memory, enabling agents to process and store data efficiently with high-fidelity reasoning.
     key_claims:
@@ -150,7 +150,7 @@ patents:
       - P005
       - P001 (tool integration aspects)
 
-  - id: NEW-P003
+  - id: P003
     title: Native Interpretability & Regulatory Compliance Suite
     description: Comprehensive system for native interpretability, causal reasoning, visualization, and multi-jurisdictional regulatory compliance in semantic agent optimization.
     key_claims:
@@ -195,7 +195,7 @@ patents:
       - P072
       - P068
 
-  - id: NEW-P004
+  - id: P004
     title: Semantic Security & Privacy Framework
     description: Comprehensive security and privacy system for semantic agents, including authentication, encrypted reasoning, and adversarial defense.
     key_claims:
@@ -234,7 +234,7 @@ patents:
       - P066
       - P067
 
-  - id: NEW-P005
+  - id: P005
     title: Unified Learning & Optimization Platform
     description: Unified platform for transfer, reinforcement, active, continual, and multi-objective learning, enabling data-efficient, adaptive optimization with interpretable policies.
     key_claims:
@@ -277,7 +277,7 @@ patents:
       - P034
       - P033
 
-  - id: NEW-P006
+  - id: P006
     title: Semantic Data Intelligence Suite
     description: Comprehensive data processing suite for compression, feature engineering, augmentation, quality assessment, and synthetic data generation with semantic understanding.
     key_claims:
@@ -321,7 +321,7 @@ patents:
       - P027
       - P069
 
-  - id: NEW-P007
+  - id: P007
     title: Distributed & Federated Computing Platform
     description: Privacy-preserving distributed AI platform with federated learning, analytics, training orchestration, and blockchain coordination.
     key_claims:
@@ -362,7 +362,7 @@ patents:
       - P061
       - P065
 
-  - id: NEW-P008
+  - id: P008
     title: Production AI Operations Framework
     description: MLOps framework for debugging, versioning, monitoring, compression, and performance prediction of semantic agent systems.
     key_claims:
@@ -404,7 +404,7 @@ patents:
       - P032
       - P085
 
-  - id: NEW-P009
+  - id: P009
     title: Advanced AI Architectures
     description: Hardware-optimized architectures for semantic reasoning, including quantum-inspired, neuromorphic, and custom ASIC/FPGA designs.
     key_claims:
@@ -444,7 +444,7 @@ patents:
       - P004
       - P070
 
-  - id: NEW-P010
+  - id: P010
     title: Semantic Analysis Suite
     description: Analytical suite for ensemble learning, anomaly detection, time series analysis, and uncertainty quantification with semantic understanding.
     key_claims:
@@ -485,7 +485,7 @@ patents:
       - P019
       - P036
 
-  - id: NEW-P011
+  - id: P011
     title: Neural Architecture & Optimization Search
     description: Semantic-driven architecture search and optimization for neural networks, graph neural networks, and non-differentiable problems.
     key_claims:
@@ -525,7 +525,7 @@ patents:
       - P058
       - P059
 
-  - id: NEW-P012
+  - id: P012
     title: Healthcare & Life Sciences Platform
     description: Semantic AI for drug discovery, mental health support, and causal interpretability in healthcare applications.
     key_claims:
@@ -565,7 +565,7 @@ patents:
       - P045
       - P021 (healthcare portions)
 
-  - id: NEW-P013
+  - id: P013
     title: Financial Intelligence Suite
     description: Semantic AI for risk assessment, fraud detection, and financial forecasting with interpretable reasoning.
     key_claims:
@@ -603,7 +603,7 @@ patents:
       - P018 (fraud detection aspects)
       - P019 (financial forecasting portions)
 
-  - id: NEW-P014
+  - id: P014
     title: Autonomous Systems Platform
     description: Semantic AI for autonomous vehicles, space missions, and swarm-based coordination with ethical reasoning.
     key_claims:
@@ -642,7 +642,7 @@ patents:
       - P046 (autonomous aspects)
       - P010 (multi-agent coordination portions)
 
-  - id: NEW-P015
+  - id: P015
     title: Enterprise & Supply Chain AI
     description: Semantic AI for manufacturing, retail, and supply chain optimization with multi-tier coordination.
     key_claims:
@@ -680,7 +680,7 @@ patents:
       - P047
       - P049
 
-  - id: NEW-P016
+  - id: P016
     title: Scientific & Climate Intelligence
     description: Semantic AI for climate modeling, agricultural optimization, energy grid management, and scientific discovery.
     key_claims:
@@ -720,7 +720,7 @@ patents:
       - P057
       - P046 (scientific discovery portions)
 
-  - id: NEW-P017
+  - id: P017
     title: Legal & Compliance Platform
     description: Semantic AI for legal research, contract analysis, and multi-jurisdictional compliance with court-admissible reasoning.
     key_claims:

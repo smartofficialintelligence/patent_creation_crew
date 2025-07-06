@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from crewai.tools import BaseTool
 import logging
 from datetime import datetime
+import nbformat
 
 # Import from core modules
 from core.validation import validate_patent_dict
@@ -14,7 +15,7 @@ class ColabDemoGeneratorTool(BaseTool):
     
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str], 
              technical_features: List[str], market_applications: List[str], 
-             editorial_feedback: str = None) -> str:
+             editorial_feedback: str = None, tier: str = None) -> str:
         try:
             # Handle potential None values or empty strings
             patent_id = patent_id or "UNKNOWN"
@@ -23,24 +24,33 @@ class ColabDemoGeneratorTool(BaseTool):
             key_claims = key_claims or ["No claims provided"]
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
+            tier = tier or "tier_1"  # Default to tier_1 if not specified
             
             # Generate the notebook content
             notebook_content = self._generate_colab_notebook(
                 patent_id, title, description, key_claims, technical_features, market_applications,
-                editorial_feedback
+                editorial_feedback, tier
             )
             
             # Determine output file based on whether this is initial or final version
             if editorial_feedback:
-                notebook_file = f"patent_output/colab_demos/{patent_id}_demo_final.ipynb"
+                notebook_file = f"patent_output/{tier}/{patent_id}_colab_demo_final.ipynb"
                 log_message = f"✅ Final Colab notebook generated with editorial feedback: {notebook_file}"
             else:
-                notebook_file = f"patent_output/colab_demos/{patent_id}_demo.ipynb"
+                notebook_file = f"patent_output/{tier}/{patent_id}_colab_demo.ipynb"
                 log_message = f"✅ Initial Colab notebook generated: {notebook_file}"
             os.makedirs(os.path.dirname(notebook_file), exist_ok=True)
             
-            with open(notebook_file, 'w', encoding='utf-8') as f:
-                json.dump(notebook_content, f, indent=2)
+            # Write and validate notebook using nbformat
+            try:
+                nb_node = nbformat.from_dict(notebook_content)
+                nbformat.validate(nb_node)  # Raises exception if invalid
+                with open(notebook_file, 'w', encoding='utf-8') as f:
+                    nbformat.write(nb_node, f)
+            except Exception as nb_exc:
+                error_msg = f"Notebook validation or writing failed: {nb_exc}"
+                logging.error(error_msg)
+                return error_msg
             
             return log_message
             
@@ -77,7 +87,7 @@ Input Parameters Received:
     
     def _generate_colab_notebook(self, patent_id: str, title: str, description: str, 
                                 key_claims: List[str], technical_features: List[str], 
-                                market_applications: List[str], editorial_feedback: str = None) -> Dict:
+                                market_applications: List[str], editorial_feedback: str = None, tier: str = "tier_1") -> Dict:
         """Generate a complete Colab notebook with code demos and benchmarks"""
         
         # Log editorial feedback integration if provided
@@ -617,7 +627,11 @@ Input Parameters Received:
                 "    print(f\"  • {app}\")\n",
                 "\n",
                 "# Save results to file\n",
-                "results_file = f'{patent_id}_demo_results.json'\n",
+                "import os\n",
+                "tier = '{tier}'\n",
+                "results_dir = f'patent_output/{tier}'\n",
+                "os.makedirs(results_dir, exist_ok=True)\n",
+                "results_file = os.path.join(results_dir, f'{patent_id}_demo_results.json')\n",
                 "with open(results_file, 'w') as f:\n",
                 "    json.dump(summary_data, f, indent=2)\n",
                 "\n",

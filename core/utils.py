@@ -278,7 +278,7 @@ def clear_outputs():
                         shutil.rmtree(file_path)
                 except Exception as e:
                     print(f'Failed to delete {file_path}. Reason: {e}')
-    print("All output and cache directories cleared.")
+    print("All output and cache directories cleared.") 
 
 def extract_valuation_data_from_output(output_text: str) -> Optional[Dict]:
     """
