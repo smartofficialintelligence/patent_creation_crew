@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import logging
 

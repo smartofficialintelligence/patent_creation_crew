@@ -1,0 +1,32 @@
+# LangSmith Configuration
+# Set these environment variables in your .env file:
+# LANGCHAIN_API_KEY=your_langsmith_api_key_here
+
+langsmith:
+  # Enable/disable LangSmith tracing
+  enabled: true
+  
+  # Project name for organizing traces
+  project: "patent-pipeline"
+  
+  # Endpoint for LangSmith API
+  endpoint: "https://api.smith.langchain.com"
+  
+  # Tracing configuration
+  tracing:
+    v2: true
+    verbose: false
+    
+  # Tags for organizing traces
+  tags:
+    - "patent-automation"
+    - "crewai"
+    - "ai-agents"
+    
+  # Metadata for traces
+  metadata:
+    version: "1.0.0"
+    environment: "development"
+    
+  # Sampling rate (1.0 = 100% of traces)
+  sampling_rate: 1.0 

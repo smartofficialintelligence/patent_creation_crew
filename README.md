@@ -16,8 +16,7 @@ method-patent/
 │   ├── automation.py      # Automation logic
 │   ├── validation.py      # Data validation utilities
 │   ├── utils.py           # General utilities
-│   ├── export.py          # Export functionality
-│   └── legacy_system.py   # Previous system (deprecated)
+│   └── export.py          # Export functionality
 ├── tools/                 # CrewAI tools
 │   ├── patent_document.py
 │   ├── patent_valuation.py
@@ -66,6 +65,7 @@ method-patent/
 2. **Set environment variables**:
    ```bash
    export OPENAI_API_KEY="your-key"
+   export LANGCHAIN_API_KEY="your-langsmith-key"  # Optional: for LangSmith monitoring
    export LENS_API_KEY="your-key"  # Optional
    export EPO_API_KEY="your-key"   # Optional
    ```
@@ -199,6 +199,56 @@ The system now includes comprehensive retry and recovery mechanisms:
 - **Tier 1**: 2 patents (Healthcare/Financial - $6-20M each)
 - **Tier 2**: 22 patents (Core technologies - $4-15M each)
 - **Tier 3**: 13 patents (Applications - $3-12M each)
+
+## 🔍 LangSmith Monitoring (Optional)
+
+The system includes optional LangSmith integration for debugging, testing, and monitoring LLM applications.
+
+### Setup LangSmith
+
+1. **Get a LangSmith API key**:
+   - Sign up at https://smith.langchain.com/
+   - Get your API key from the dashboard
+
+2. **Set the environment variable**:
+   ```bash
+   export LANGCHAIN_API_KEY="your-langsmith-api-key"
+   ```
+
+3. **Run the demo** to test LangSmith integration:
+   ```bash
+   python scripts/langsmith_demo.py
+   ```
+
+### LangSmith Features
+
+- **Function Tracing**: Use `@trace_function` decorator to trace any function
+- **Agent Monitoring**: Automatic logging of agent executions
+- **Tool Monitoring**: Track tool usage and performance
+- **Debugging**: Detailed traces for troubleshooting
+- **Performance Analysis**: Monitor response times and token usage
+
+### Configuration
+
+LangSmith settings can be configured in `config/langsmith_config.yaml`:
+- Project name and tags
+- Sampling rates
+- Metadata and environment settings
+- Tracing verbosity
+
+### Usage Examples
+
+```python
+from core.langsmith_utils import trace_function, log_agent_execution
+
+@trace_function(name="my_function")
+def my_function():
+    # This function will be traced in LangSmith
+    pass
+
+# Log agent execution
+log_agent_execution("agent_name", "task_name", inputs, outputs)
+```
 
 ## 🔧 Configuration
 

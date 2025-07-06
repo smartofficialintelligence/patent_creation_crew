@@ -125,6 +125,8 @@ patent_document:
     7. Prior art differentiation discussion
     8. Regulatory compliance considerations
     
+    CRITICAL REQUIREMENT: You MUST create the ACTUAL patent document content, not a description or summary of what the document should contain. Write complete technical specifications, full claims, and comprehensive background sections.
+    
     PATENT DATA:
     - Description: {description}
     - Technical Features: {technical_features}
@@ -138,6 +140,15 @@ patent_document:
     - Professional language and structure
     - Complete enablement for implementation
     - Strategic claim positioning for portfolio value
+    - ACTUAL document content, not summaries or descriptions
+    
+    CONTENT REQUIREMENTS:
+    - Write complete technical specifications with full implementation details
+    - Include comprehensive background section with actual technical content
+    - Provide detailed description with examples, algorithms, and code
+    - Write out claims in full legal format, not just describe them
+    - Create professional document structure and formatting
+    - Ensure the document is complete and ready for review
     
     Incorporate refined claims and prior art analysis findings.
     
@@ -212,6 +223,55 @@ legal_review:
   agent: legal_reviewer
   context: [prior_art_research, claims_refinement, patent_integration]
 
+associate_editor_review:
+  description: |
+    Provide initial editorial feedback and suggestions for the patent document:
+    
+    PATENT: {title} (ID: {id})
+    
+    ASSOCIATE EDITOR OBJECTIVES:
+    1. Conduct initial review of patent document for quality and completeness
+    2. Identify potential improvements and enhancement opportunities
+    3. Provide constructive feedback and suggestions for consideration
+    4. Assess technical accuracy and structural integrity
+    5. Evaluate claim clarity and commercial value potential
+    6. Suggest improvements for prior art differentiation
+    7. Offer insights on document structure and formatting
+    
+    REVIEW FOCUS:
+    - Technical accuracy and completeness
+    - Claim structure and language clarity
+    - Document organization and flow
+    - Prior art integration effectiveness
+    - Commercial value proposition strength
+    - Technical specification quality
+    - Cross-referencing with industry standards
+    
+    FEEDBACK APPROACH:
+    - Provide thoughtful, constructive suggestions
+    - Focus on specific, actionable improvements
+    - Consider both technical and commercial aspects
+    - Offer alternative approaches where beneficial
+    - Maintain professional, supportive tone
+    - Highlight both strengths and areas for improvement
+    
+    Your feedback will be considered by the senior editor, who will evaluate each suggestion 
+    against their professional judgment and strategic objectives. Provide valuable insights 
+    that support the editorial process while respecting the senior editor's final authority.
+  expected_output: |
+    Associate editor feedback report including:
+    - Initial quality assessment and observations
+    - Specific improvement suggestions and recommendations
+    - Technical accuracy verification and enhancement ideas
+    - Claim structure and language improvement suggestions
+    - Document organization and flow recommendations
+    - Prior art integration enhancement ideas
+    - Commercial value optimization suggestions
+    - Professional, constructive feedback for senior editor consideration
+  output_file: "patent_output/{tier}/{id}_associate_editor_review.md"
+  agent: associate_editor
+  context: [prior_art_research, claims_refinement, patent_document]
+
 editorial_review:
   description: |
     Conduct final editorial review of patent document and provide specific alterations for integration: 
@@ -225,6 +285,8 @@ editorial_review:
     4. Assess technical accuracy and legal compliance 
     5. Suggest enhancements for commercial value and enforceability 
     6. Ensure proper integration of refined claims 
+    7. VERIFY that the document contains ACTUAL content, not just descriptions or summaries
+    8. Consider associate editor feedback and evaluate each suggestion
     
     REVIEW SCOPE: 
     - Patent document structure and formatting 
@@ -233,6 +295,8 @@ editorial_review:
     - Prior art differentiation effectiveness 
     - Commercial value proposition clarity 
     - Legal compliance and USPTO requirements 
+    - CONTENT VERIFICATION: Ensure actual technical details, not just descriptions
+    - ASSOCIATE EDITOR FEEDBACK: Review and evaluate suggestions from associate editor
     
     EDITORIAL FOCUS: 
     - Specific text alterations and improvements 
@@ -240,8 +304,39 @@ editorial_review:
     - Quality enhancement recommendations 
     - Technical accuracy verification 
     - Commercial value optimization suggestions 
+    - CRITICAL: Remove any fake filing information (Application Numbers, Filing Dates, Patent IDs)
+    - CRITICAL: Verify document contains actual patent content, not summaries or descriptions
+    - COLLABORATIVE REVIEW: Consider associate editor insights while maintaining final editorial authority
     
-    Provide specific, actionable alterations that the patent writer can directly integrate.  expected_output: |
+    CRITICAL EDITORIAL REQUIREMENTS:
+    - REMOVE any fake "Application Number", "Filing Date", or "Patent ID" fields
+    - Replace any "Provisional Patent Application" headers with "Patent Analysis Document"
+    - VERIFY the document contains complete technical specifications, not just summaries
+    - CHECK that claims are fully written out, not just described
+    - ENSURE background and detailed description sections contain actual content
+    - CONFIRM the document is a complete patent application, not an outline or summary
+    - EVALUATE associate editor feedback and adopt suggestions that align with your analysis
+    
+    CONTENT VERIFICATION CHECKLIST:
+    - Does the document contain actual technical specifications and implementation details?
+    - Are claims written out in full legal format, not just described?
+    - Does the background section contain substantive technical content?
+    - Is the detailed description comprehensive with actual examples and code?
+    - Does the document appear to be a complete patent application rather than a summary?
+    
+    ASSOCIATE EDITOR FEEDBACK EVALUATION:
+    - Review the associate editor's suggestions and recommendations
+    - Evaluate each suggestion against your professional judgment and strategic objectives
+    - Adopt suggestions that align with your analysis and enhance document quality
+    - Reject suggestions that don't align with your editorial vision or strategic goals
+    - Provide clear reasoning for your decisions in your final editorial review
+    - Maintain final editorial authority while being open to valuable insights
+    
+    If the document appears to be only a summary or description rather than actual content, 
+    provide specific instructions to the patent writer to regenerate the complete document.
+    
+    Provide specific, actionable alterations that the patent writer can directly integrate.
+  expected_output: |
     Editorial review report including: 
     - Specific alterations and improvements for patent document 
     - Clear implementation guidance for each change 
@@ -249,9 +344,12 @@ editorial_review:
     - Technical accuracy verification and corrections 
     - Commercial value optimization suggestions 
     - Legal compliance improvements 
-    - Integration instructions for patent writer  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
+    - Integration instructions for patent writer
+    - Evaluation of associate editor feedback and reasoning for adopted/rejected suggestions
+  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
   output_file: "patent_output/{tier}/{id}_editorial_review.md"
   agent: editor
+  context: [prior_art_research, claims_refinement, patent_document, associate_editor_review]
 
 patent_integration:
   description: |
@@ -298,22 +396,22 @@ patent_integration:
   output_pydantic: tools.patent_document.PatentDocumentInput
   output_file: "patent_output/{tier}/{id}_patent_application_final.md"
   agent: patent_writer
-  context: [prior_art_research, claims_refinement, patent_document, editorial_review]  context: [prior_art_research, claims_refinement, patent_document, legal_review]
+  context: [prior_art_research, claims_refinement, patent_document, editorial_review]
 
 cover_sheet:
   description: |
-    Generate USPTO-compliant provisional patent application cover sheet:
+    Generate patent analysis cover sheet for research and analysis purposes:
     
     PATENT: {title} (ID: {id})
     
     COVER SHEET REQUIREMENTS:
-    1. USPTO-compliant provisional application cover sheet format
-    2. Complete inventor and assignee information
-    3. Accurate application details and page counts
-    4. Proper declaration statements and checkboxes
-    5. Fee calculation and payment method selection
-    6. Signature section and notary requirements
-    7. Filing checklist and compliance verification
+    1. Research and analysis cover sheet format (NOT for filing)
+    2. Clear disclaimers that this is for analysis purposes only
+    3. Document information and reference details
+    4. Analysis date and purpose
+    5. Technical documentation structure
+    6. Research methodology and scope
+    7. Analysis checklist and quality verification
     
     PATENT INFORMATION:
     - Title: {title}
@@ -322,23 +420,24 @@ cover_sheet:
     - Technical Features: {technical_features}
     - Market Applications: {market_applications}
     
-    FILING REQUIREMENTS:
-    - Entity Status: Determine appropriate entity status for fee calculation
-    - Priority Claims: Assess if priority should be claimed
-    - Government Interest: Determine if Government support applies
-    - Foreign Filing: Assess foreign filing license needs
-    - Sequence/Program Listings: Determine if applicable
+    ANALYSIS REQUIREMENTS:
+    - Document Type: Research and analysis document
+    - Purpose: Technical analysis and evaluation
+    - Scope: Comprehensive patent analysis
+    - Methodology: Systematic evaluation approach
+    - Quality Standards: Professional analysis standards
     
-    Ensure all USPTO requirements are met for successful filing.
+    Ensure document clearly indicates it is for research and analysis purposes only.
   expected_output: |
-    USPTO-compliant provisional application cover sheet including:
-    - Complete inventor and assignee information
-    - Accurate fee calculation and payment method
-    - Entity status determination and documentation
-    - Filing checklist and quality assurance
-    - USPTO form completion and compliance
+    Patent analysis cover sheet including:
+    - Clear research and analysis disclaimers
+    - Document information and reference details
+    - Analysis date and purpose
+    - Technical documentation structure
+    - Research methodology and scope
+    - Analysis checklist and quality verification
     - Professional formatting and presentation
-    - Filing-ready documentation
+    - Research documentation standards
   output_pydantic: tools.provisional_cover_sheet.ProvisionalCoverSheetInput
   output_file: "patent_output/{tier}/{id}_cover_sheet.md"
   agent: cover_sheet_specialist

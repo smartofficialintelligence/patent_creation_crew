@@ -3,7 +3,7 @@
 import os
 import re
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 import shutil
 
 # Placeholders for any global variables or settings
@@ -49,7 +49,9 @@ def should_skip_task(task_type: str, patent_id: str, tier: str) -> bool:
         'patent_application': f"patent_output/{tier}/{patent_id}_patent_application.md",
         'legal_review': f"patent_output/{tier}/{patent_id}_legal_review.md",
         'overlap_analysis': f"patent_output/{tier}/{patent_id}_overlap_analysis.md",
-        'final_review': f"patent_output/{tier}/{patent_id}_final_review.md",
+        'associate_editor_review': f"patent_output/{tier}/{patent_id}_associate_editor_review.md",
+        'editorial_review': f"patent_output/{tier}/{patent_id}_editorial_review.md",
+        'patent_integration': f"patent_output/{tier}/{patent_id}_patent_application_final.md",
         'cover_sheet': f"patent_output/{tier}/{patent_id}_cover_sheet.md"
     }
     
@@ -276,4 +278,263 @@ def clear_outputs():
                         shutil.rmtree(file_path)
                 except Exception as e:
                     print(f'Failed to delete {file_path}. Reason: {e}')
-    print("All output and cache directories cleared.") 
+    print("All output and cache directories cleared.")
+
+def extract_valuation_data_from_output(output_text: str) -> Optional[Dict]:
+    """
+    Extract structured valuation data from tool output text.
+    
+    Args:
+        output_text: The output text from the patent_valuation_tool
+        
+    Returns:
+        Dict containing valuation data if found, None otherwise
+    """
+    try:
+        # Look for the JSON data marker
+        start_marker = "<!-- VALUATION_JSON_DATA\n"
+        end_marker = "\nVALUATION_JSON_DATA -->"
+        
+        start_idx = output_text.find(start_marker)
+        if start_idx == -1:
+            return None
+            
+        end_idx = output_text.find(end_marker, start_idx)
+        if end_idx == -1:
+            return None
+            
+        # Extract the JSON data
+        json_start = start_idx + len(start_marker)
+        json_text = output_text[json_start:end_idx].strip()
+        
+        # Parse the JSON
+        import json
+        valuation_data = json.loads(json_text)
+        return valuation_data
+        
+    except Exception as e:
+        logging.warning(f"Failed to extract valuation data: {e}")
+        return None
+
+def aggregate_portfolio_valuation(valuation_data_list: List[Dict]) -> Dict:
+    """
+    Aggregate valuation data from multiple patents into portfolio summary.
+    
+    Args:
+        valuation_data_list: List of valuation data dictionaries
+        
+    Returns:
+        Dict containing aggregated portfolio valuation
+    """
+    if not valuation_data_list:
+        return {
+            "total_patents": 0,
+            "total_low_value": 0,
+            "total_high_value": 0,
+            "total_mid_value": 0,
+            "average_mid_value": 0,
+            "value_categories": {},
+            "confidence_levels": {}
+        }
+    
+    total_low = sum(data["valuation"]["low_value"] for data in valuation_data_list)
+    total_high = sum(data["valuation"]["high_value"] for data in valuation_data_list)
+    total_mid = sum(data["valuation"]["mid_value"] for data in valuation_data_list)
+    
+    # Count categories and confidence levels
+    categories = {}
+    confidence_levels = {}
+    
+    for data in valuation_data_list:
+        category = data["valuation"]["category"]
+        confidence = data["valuation"]["confidence"]
+        
+        categories[category] = categories.get(category, 0) + 1
+        confidence_levels[confidence] = confidence_levels.get(confidence, 0) + 1
+    
+    return {
+        "total_patents": len(valuation_data_list),
+        "total_low_value": total_low,
+        "total_high_value": total_high,
+        "total_mid_value": total_mid,
+        "average_mid_value": total_mid / len(valuation_data_list) if valuation_data_list else 0,
+        "value_categories": categories,
+        "confidence_levels": confidence_levels
+    }
+
+def collect_valuation_results_from_outputs(output_files: List[str]) -> List[Dict]:
+    """
+    Collect valuation results from output files.
+    
+    Args:
+        output_files: List of file paths to check for valuation data
+        
+    Returns:
+        List of valuation data dictionaries
+    """
+    valuation_data_list = []
+    
+    for file_path in output_files:
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    
+                # First try to extract structured JSON data
+                valuation_data = extract_valuation_data_from_output(content)
+                
+                # If JSON extraction fails, try manual extraction from report content
+                if not valuation_data:
+                    valuation_data = extract_valuation_from_report_content(content, file_path)
+                
+                if valuation_data:
+                    valuation_data_list.append(valuation_data)
+                    
+        except Exception as e:
+            logging.warning(f"Failed to read file {file_path}: {e}")
+            continue
+    
+    return valuation_data_list
+
+def extract_valuation_from_report_content(content: str, file_path: str) -> Optional[Dict]:
+    """
+    Manually extract valuation data from report content when JSON data is not available.
+    
+    Args:
+        content: The report content
+        file_path: The file path for context
+        
+    Returns:
+        Dict containing valuation data if found, None otherwise
+    """
+    try:
+        # Extract patent ID from filename
+        import re
+        patent_id_match = re.search(r'([A-Z]\d+)_valuation_report\.md', file_path)
+        patent_id = patent_id_match.group(1) if patent_id_match else "UNKNOWN"
+        
+        # Parse the valuation summary section
+        lines = content.split('\n')
+        valuation_data = {
+            "patent_id": patent_id,
+            "title": "Unknown Title",
+            "valuation": {
+                "low_value": 0,
+                "high_value": 0,
+                "mid_value": 0,
+                "category": "UNKNOWN",
+                "confidence": "UNKNOWN"
+            },
+            "factors": {
+                "base_value": 0,
+                "market_factor": 0,
+                "innovation_factor": 0,
+                "risk_factor": 0,
+                "regulatory_factor": 0,
+                "competitive_factor": 0
+            }
+        }
+        
+        for i, line in enumerate(lines):
+            line = line.strip()
+            
+            # Extract title
+            if "Title:" in line and "Title:" in line.split(":")[0]:
+                title = line.split("Title:")[1].strip()
+                valuation_data["title"] = title
+            
+            # Extract value range
+            elif "Estimated Value Range:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    low_str, high_str = value_part.split(" - ")
+                    low_value = float(low_str.replace("$", "").replace("M", ""))
+                    high_value = float(high_str.replace("$", "").replace("M", ""))
+                    valuation_data["valuation"]["low_value"] = low_value
+                    valuation_data["valuation"]["high_value"] = high_value
+                    valuation_data["valuation"]["mid_value"] = (low_value + high_value) / 2
+                except:
+                    pass
+            
+            # Extract mid-point value
+            elif "Mid-Point Value:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    mid_value = float(value_part.replace("$", "").replace("M", ""))
+                    valuation_data["valuation"]["mid_value"] = mid_value
+                except:
+                    pass
+            
+            # Extract value category
+            elif "Value Category:" in line:
+                category = line.split(":")[1].strip()
+                valuation_data["valuation"]["category"] = category
+            
+            # Extract confidence level
+            elif "Confidence Level:" in line:
+                confidence = line.split(":")[1].strip()
+                valuation_data["valuation"]["confidence"] = confidence
+            
+            # Extract base value
+            elif "BASE VALUE:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    base_value = float(value_part.replace("$", "").replace("M", ""))
+                    valuation_data["factors"]["base_value"] = base_value
+                except:
+                    pass
+            
+            # Extract market factor
+            elif "MARKET FACTOR:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    market_factor = float(value_part.replace("x", ""))
+                    valuation_data["factors"]["market_factor"] = market_factor
+                except:
+                    pass
+            
+            # Extract innovation factor
+            elif "INNOVATION FACTOR:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    innovation_factor = float(value_part.replace("x", ""))
+                    valuation_data["factors"]["innovation_factor"] = innovation_factor
+                except:
+                    pass
+            
+            # Extract risk factor
+            elif "RISK FACTOR:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    risk_factor = float(value_part.replace("x", ""))
+                    valuation_data["factors"]["risk_factor"] = risk_factor
+                except:
+                    pass
+            
+            # Extract regulatory factor
+            elif "REGULATORY FACTOR:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    regulatory_factor = float(value_part.replace("x", ""))
+                    valuation_data["factors"]["regulatory_factor"] = regulatory_factor
+                except:
+                    pass
+            
+            # Extract competitive factor
+            elif "COMPETITIVE FACTOR:" in line:
+                try:
+                    value_part = line.split(":")[1].strip()
+                    competitive_factor = float(value_part.replace("x", ""))
+                    valuation_data["factors"]["competitive_factor"] = competitive_factor
+                except:
+                    pass
+        
+        # Only return if we found meaningful valuation data
+        if valuation_data["valuation"]["mid_value"] > 0:
+            return valuation_data
+        else:
+            return None
+            
+    except Exception as e:
+        logging.warning(f"Failed to extract valuation from report content: {e}")
+        return None 

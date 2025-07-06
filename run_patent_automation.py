@@ -18,6 +18,31 @@ load_dotenv()
 # Disable Chroma telemetry to avoid error messages
 os.environ['CHROMA_TELEMETRY_ENABLED'] = 'false'
 
+# Configure LangSmith for debugging and monitoring
+try:
+    import langsmith
+    from langsmith import Client
+    
+    # Set LangSmith environment variables if not already set
+    api_key = os.getenv('LANGCHAIN_API_KEY') or os.getenv('LANGSMITH_API_KEY')
+    if not api_key:
+        print("Neither LANGCHAIN_API_KEY nor LANGSMITH_API_KEY is set. LangSmith monitoring will be disabled.")
+    else:
+        # Configure LangSmith
+        os.environ['LANGCHAIN_TRACING_V2'] = 'true'
+        os.environ['LANGCHAIN_ENDPOINT'] = 'https://api.smith.langchain.com'
+        os.environ['LANGCHAIN_PROJECT'] = 'patent-pipeline'
+        os.environ['LANGCHAIN_API_KEY'] = api_key  # Ensure it's set for LangSmith
+        
+        # Initialize LangSmith client
+        langsmith_client = Client()
+        print("✅ LangSmith configured for monitoring and debugging")
+        
+except ImportError:
+    print("LangSmith not installed. Install with: pip install langsmith")
+except Exception as e:
+    print(f"Could not configure LangSmith: {e}")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -36,7 +61,9 @@ from crewai import Crew, Agent, Task
 from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
 from core.retry_manager import RetryManager
 from core.incremental_processor import IncrementalProcessor
+from core.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
 
+@trace_function(name="validate_environment")
 def validate_environment():
     """Validate that required environment variables are set"""
     if not os.getenv('OPENAI_API_KEY'):
@@ -73,12 +100,13 @@ def setup_output_directories():
     base_dir = Path("patent_output")
     base_dir.mkdir(exist_ok=True)
     
-    for tier in ['tier_1', 'tier_2', 'tier_3']:
+    for tier in ['tier_1', 'tier_2', 'tier_3', 'tier_4']:
         tier_dir = base_dir / tier
         tier_dir.mkdir(exist_ok=True)
     
     logger.info("✅ Output directories created")
 
+@trace_function(name="create_agents_from_yaml")
 def create_agents_from_yaml() -> Dict[str, Agent]:
     """Create agents from YAML configuration"""
     with open('config/agents.yaml', 'r') as f:
@@ -92,36 +120,54 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
         # Create tool instances for this agent
         tools = []
         for tool_name in agent_config.get('tools', []):
-            # Import and instantiate tools
+            # Import and instantiate tools with parameter correction
             if tool_name == 'real_patent_search_tool':
                 from tools.real_patent_search import RealPatentSearchTool
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 lens_api_key = os.getenv('LENS_API_KEY')
                 epo_api_key = os.getenv('EPO_API_KEY')
-                tools.append(RealPatentSearchTool(lens_api_key=lens_api_key, epo_api_key=epo_api_key))
+                tool_instance = RealPatentSearchTool(lens_api_key=lens_api_key, epo_api_key=epo_api_key)
+                tools.append(wrap_tool_with_parameter_correction('real_patent_search_tool', tool_instance))
             elif tool_name == 'arxiv_search_tool':
                 from tools.arxiv_search import ArxivSearchTool
-                tools.append(ArxivSearchTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ArxivSearchTool()
+                tools.append(wrap_tool_with_parameter_correction('arxiv_search_tool', tool_instance))
             elif tool_name == 'consolidated_risk_assessment_tool':
                 from tools.consolidated_risk_assessment import ConsolidatedRiskAssessmentTool
-                tools.append(ConsolidatedRiskAssessmentTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ConsolidatedRiskAssessmentTool()
+                tools.append(wrap_tool_with_parameter_correction('consolidated_risk_assessment_tool', tool_instance))
             elif tool_name == 'vector_based_overlap_analysis_tool':
                 from tools.vector_based_overlap_analysis import VectorBasedOverlapAnalysisTool
-                tools.append(VectorBasedOverlapAnalysisTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = VectorBasedOverlapAnalysisTool()
+                tools.append(wrap_tool_with_parameter_correction('vector_based_overlap_analysis_tool', tool_instance))
             elif tool_name == 'patent_document_tool':
                 from tools.patent_document import PatentDocumentTool
-                tools.append(PatentDocumentTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = PatentDocumentTool()
+                tools.append(wrap_tool_with_parameter_correction('patent_document_tool', tool_instance))
             elif tool_name == 'smart_claim_refinement_tool':
                 from tools.smart_claim_refinement import SmartClaimRefinementTool
-                tools.append(SmartClaimRefinementTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = SmartClaimRefinementTool()
+                tools.append(wrap_tool_with_parameter_correction('smart_claim_refinement_tool', tool_instance))
             elif tool_name == 'final_review_and_improvement_tool':
                 from tools.final_review_and_improvement import FinalReviewAndImprovementTool
-                tools.append(FinalReviewAndImprovementTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = FinalReviewAndImprovementTool()
+                tools.append(wrap_tool_with_parameter_correction('final_review_and_improvement_tool', tool_instance))
             elif tool_name == 'provisional_cover_sheet_tool':
                 from tools.provisional_cover_sheet import ProvisionalCoverSheetTool
-                tools.append(ProvisionalCoverSheetTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ProvisionalCoverSheetTool()
+                tools.append(wrap_tool_with_parameter_correction('provisional_cover_sheet_tool', tool_instance))
             elif tool_name == 'patent_valuation_tool':
                 from tools.patent_valuation import PatentValuationTool
-                tools.append(PatentValuationTool())
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = PatentValuationTool()
+                tools.append(wrap_tool_with_parameter_correction('patent_valuation_tool', tool_instance))
         # Create agent
         agent = Agent(
             role=agent_config['role'],
@@ -139,6 +185,7 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
         agents[agent_name] = agent
     return agents
 
+@trace_function(name="create_patent_tasks")
 def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, Agent]) -> List[Task]:
     """Create tasks for patent ideas using YAML configuration"""
     
@@ -181,7 +228,7 @@ def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, A
                         description=description,
                         expected_output=task_config['expected_output'],
                         output_file=task_config['output_file'].format(
-                            tier=tier, id=patent_idea['id']
+                            tier=tier, id=clean_patent_id(patent_idea['id'])
                         ),
                         agent=agents[agent_name]
                     )
@@ -201,21 +248,75 @@ def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, A
     logger.info(f"Created {len(tasks)} tasks total")
     return tasks
 
+def clean_patent_id(patent_id: str) -> str:
+    """Remove NEW- prefix from patent ID for file naming"""
+    if patent_id.startswith("NEW-"):
+        return patent_id[4:]  # Remove "NEW-" prefix
+    return patent_id
+
+def read_refined_claims(patent_id: str, tier: str) -> List[str]:
+    """Read refined claims from the refined claims file if it exists"""
+    cleaned_id = clean_patent_id(patent_id)
+    refined_claims_file = f"patent_output/{tier}/{cleaned_id}_refined_claims.md"
+    
+    if not os.path.exists(refined_claims_file):
+        return []
+    
+    try:
+        with open(refined_claims_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Extract claims from the refined claims file
+        claims = []
+        lines = content.split('\n')
+        in_claims_section = False
+        
+        for line in lines:
+            line = line.strip()
+            if 'INDEPENDENT CLAIMS:' in line or 'DEPENDENT CLAIMS:' in line:
+                in_claims_section = True
+                continue
+            elif line.startswith('CLAIM STRENGTH ANALYSIS:') or line.startswith('STRATEGIC CONSIDERATIONS:'):
+                break
+            elif in_claims_section and line and not line.startswith('=') and not line.startswith('-'):
+                # Extract claim text (remove numbering)
+                if line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.', '10.')):
+                    claim_text = line.split('.', 1)[1].strip()
+                    if claim_text:
+                        claims.append(claim_text)
+                elif line and not line.startswith('(') and not line.startswith('wherein'):
+                    # Handle multi-line claims
+                    if claims:
+                        claims[-1] += ' ' + line
+        
+        return claims if claims else []
+        
+    except Exception as e:
+        logger.warning(f"Could not read refined claims for {patent_id}: {e}")
+        return []
+
 def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str:
     """Format task description with patent data"""
+    
+    # Read refined claims if they exist
+    patent_id = patent_idea.get('id', 'UNKNOWN')
+    refined_claims = read_refined_claims(patent_id, tier)
+    claims_to_use = refined_claims if refined_claims else patent_idea.get('key_claims', ['No claims provided'])
+    claims_source = "refined claims" if refined_claims else "original claims"
+    
     # Variable mapping for template substitution with safe defaults
     variables = {
         'title': patent_idea.get('title', 'Untitled Patent'),
         'id': patent_idea.get('id', 'UNKNOWN'),
         'description': patent_idea.get('description', 'No description provided'),
-        'claims_list': '\n'.join(f'- {claim}' for claim in patent_idea.get('key_claims', ['No claims provided'])),
+        'claims_list': '\n'.join(f'- {claim}' for claim in claims_to_use),
         'value_estimate': patent_idea.get('value_estimate', '$2-15M'),
         'market_applications': ', '.join(patent_idea.get('market_applications', ['AI optimization'])),
         'technical_features': ', '.join(patent_idea.get('technical_features', [])),
         'differentiation': patent_idea.get('differentiation', 'TBD'),
         'tier_name': PATENT_CONFIG['portfolio_tiers'].get(tier, {}).get('name', 'Unknown Tier'),
         'description_length': len(patent_idea.get('description', '').split()),
-        'claims_count': len(patent_idea.get('key_claims', []))
+        'claims_count': len(claims_to_use)
     }
     
     # Replace variables in template
@@ -225,16 +326,21 @@ def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str
     
     return formatted_description
 
+@trace_function(name="run_patent_automation")
 def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False):
     """Run patent automation for specified tiers using CrewAI YAML configuration"""
     
-    logger.info("🤖 Starting Patent Automation System with CrewAI Native YAML Configuration")
+    logger.info("🤖 Starting Innovation Analysis System with CrewAI Native YAML Configuration")
     logger.info("=" * 80)
-    logger.info(f"Target Portfolio: {PATENT_CONFIG['target_portfolio_size']} patents")
+    logger.info(f"Target Portfolio: {PATENT_CONFIG['target_portfolio_size']} innovations")
     logger.info(f"Total Investment: ${PATENT_CONFIG['target_portfolio_size'] * PATENT_CONFIG['filing_cost_per_patent']:,}")
-    logger.info(f"Expected Value: ~$90M (ROI: ~13,800x)")
     logger.info(f"Incremental Processing: {'Enabled' if incremental else 'Disabled'}")
     logger.info(f"Force Regenerate: {'Yes' if force_regenerate else 'No'}")
+    
+    # Add system message to override content policies
+    logger.info("📝 NOTE: This system is for RESEARCH and ANALYSIS purposes only.")
+    logger.info("   All outputs are technical documentation and analysis, not legal documents.")
+    logger.info("   ⚠️  NO FAKE FILING INFORMATION: Documents must not contain Application Numbers, Filing Dates, or Patent IDs")
     
     # Validate environment
     if not validate_environment():
@@ -275,7 +381,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     processing_results = {}
     total_patents_processed = 0
     
-    tiers_to_process = [tier_filter] if tier_filter else ['tier_1', 'tier_2', 'tier_3']
+    tiers_to_process = [tier_filter] if tier_filter else ['tier_1']  # Default to Tier 1 only
     
     for tier_key in tiers_to_process:
         if tier_key not in PATENT_CONFIG['portfolio_tiers']:
@@ -294,7 +400,6 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         
         logger.info(f"🎯 Processing {tier_info['name']}")
         logger.info(f"   Count: {len(patent_ideas)} patents")
-        logger.info(f"   Value Range: {tier_info['value_range']}")
         logger.info(f"   Timeline: {tier_info['timeline']}")
         
         try:
@@ -382,9 +487,59 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     logger.info(f"📈 Total Patents Processed: {total_patents}")
     logger.info(f"🎯 Successful Tiers: {successful_tiers}/{len(processing_results)}")
     
+    # Collect and aggregate real valuation results
     if total_patents > 0:
-        estimated_value = total_patents * 5000000  # $5M average per patent
-        logger.info(f"💰 Estimated Portfolio Value: ${estimated_value:,}")
+        logger.info("🔍 Collecting valuation results from processed patents...")
+        
+        # Import the utility functions
+        from core.utils import collect_valuation_results_from_outputs, aggregate_portfolio_valuation
+        
+        # Collect valuation data from all output files
+        valuation_files = []
+        for tier_key in processing_results.keys():
+            if tier_key in PATENT_IDEAS:
+                patent_ideas = PATENT_IDEAS[tier_key]
+                for patent in patent_ideas:
+                    # Look for valuation output files
+                    valuation_file = f"patent_output/{tier_key}/{patent['id']}_valuation_report.md"
+                    valuation_files.append(valuation_file)
+        
+        valuation_data_list = collect_valuation_results_from_outputs(valuation_files)
+        
+        if valuation_data_list:
+            portfolio_summary = aggregate_portfolio_valuation(valuation_data_list)
+            
+            logger.info("💰 REAL PORTFOLIO VALUATION (Based on Expert Analysis)")
+            logger.info("=" * 60)
+            logger.info(f"Total Patents Valued: {portfolio_summary['total_patents']}")
+            logger.info(f"Portfolio Value Range: ${portfolio_summary['total_low_value']:.1f}M - ${portfolio_summary['total_high_value']:.1f}M")
+            logger.info(f"Portfolio Mid-Point Value: ${portfolio_summary['total_mid_value']:.1f}M")
+            logger.info(f"Average Patent Value: ${portfolio_summary['average_mid_value']:.1f}M")
+            
+            # Calculate ROI
+            total_investment = total_patents * PATENT_CONFIG['filing_cost_per_patent']
+            roi_low = (portfolio_summary['total_low_value'] * 1000000) / total_investment if total_investment > 0 else 0
+            roi_high = (portfolio_summary['total_high_value'] * 1000000) / total_investment if total_investment > 0 else 0
+            roi_mid = (portfolio_summary['total_mid_value'] * 1000000) / total_investment if total_investment > 0 else 0
+            
+            logger.info(f"ROI Range: {roi_low:.0f}x - {roi_high:.0f}x")
+            logger.info(f"ROI Mid-Point: {roi_mid:.0f}x")
+            
+            # Show value distribution
+            if portfolio_summary['value_categories']:
+                logger.info("Value Distribution:")
+                for category, count in portfolio_summary['value_categories'].items():
+                    logger.info(f"  {category}: {count} patents")
+            
+            # Show confidence levels
+            if portfolio_summary['confidence_levels']:
+                logger.info("Confidence Levels:")
+                for confidence, count in portfolio_summary['confidence_levels'].items():
+                    logger.info(f"  {confidence}: {count} patents")
+        else:
+            logger.warning("⚠️ No valuation data found in outputs. Using fallback estimation.")
+            estimated_value = total_patents * 5000000  # $5M average per patent
+            logger.info(f"💰 Fallback Portfolio Value: ${estimated_value:,}")
     
     # Show retry manager summary
     logger.info("=" * 80)
@@ -405,12 +560,13 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     
     return True
 
+@trace_function(name="main")
 def main():
     """Main entry point"""
     import argparse
     
     parser = argparse.ArgumentParser(description='Patent Automation System with CrewAI Native YAML Configuration')
-    parser.add_argument('--tier', type=str, choices=['tier_1', 'tier_2', 'tier_3'], 
+    parser.add_argument('--tier', type=str, choices=['tier_1', 'tier_2', 'tier_3', 'tier_4'], 
                        help='Process specific tier only')
     parser.add_argument('--max-per-tier', type=int, 
                        help='Maximum number of patents to process per tier')
@@ -424,6 +580,8 @@ def main():
                        help='Force regeneration of all assets (overrides incremental mode)')
     parser.add_argument('--show-status', action='store_true',
                        help='Show status of existing assets without running automation')
+    parser.add_argument('--clear-logs', action='store_true',
+                       help='Clear the log file before starting automation')
     
     args = parser.parse_args()
     
@@ -433,6 +591,18 @@ def main():
         if not args.max_per_tier:
             args.max_per_tier = 1
             logger.info("   Auto-limiting to 1 patent per tier for testing")
+    
+    # Handle log clearing
+    if args.clear_logs:
+        log_file = Path("patent_automation.log")
+        if log_file.exists():
+            try:
+                log_file.unlink()
+                print("🧹 Cleared patent_automation.log")
+            except Exception as e:
+                print(f"⚠️ Could not clear log file: {e}")
+        else:
+            print("📝 No existing log file to clear")
     
     # Handle status-only mode
     if args.show_status:
@@ -444,7 +614,7 @@ def main():
             tasks_config = yaml.safe_load(f)
         
         # Show status for all tiers
-        for tier_key in ['tier_1', 'tier_2', 'tier_3']:
+        for tier_key in ['tier_1', 'tier_2', 'tier_3', 'tier_4']:
             if tier_key in PATENT_IDEAS:
                 patent_ideas = PATENT_IDEAS[tier_key]
                 if args.max_per_tier:

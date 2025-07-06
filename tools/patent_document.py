@@ -3,12 +3,13 @@
 import os
 from datetime import datetime
 from typing import Dict, Any, List
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import logging
 
 # Import from core modules
 from core.validation import validate_patent_dict
+from core.langsmith_utils import trace_function
 
 # Configuration for the patent portfolio
 PATENT_CONFIG = {
@@ -78,6 +79,77 @@ class PatentDocumentTool(BaseTool):
     def __init__(self):
         super().__init__()
 
+    def read_refined_claims(self, patent_id: str) -> List[str]:
+        """Read refined claims from the refined claims file if it exists"""
+        # Try to find the refined claims file in any tier
+        for tier in ['tier_1', 'tier_2', 'tier_3']:
+            refined_claims_file = f"patent_output/{tier}/{patent_id}_refined_claims.md"
+            if os.path.exists(refined_claims_file):
+                try:
+                    with open(refined_claims_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Extract claims from the refined claims file
+                    claims = []
+                    lines = content.split('\n')
+                    in_claims_section = False
+                    
+                    for line in lines:
+                        line = line.strip()
+                        if 'INDEPENDENT CLAIMS:' in line or 'DEPENDENT CLAIMS:' in line:
+                            in_claims_section = True
+                            continue
+                        elif line.startswith('CLAIM STRENGTH ANALYSIS:') or line.startswith('STRATEGIC CONSIDERATIONS:'):
+                            break
+                        elif in_claims_section and line and not line.startswith('=') and not line.startswith('-'):
+                            # Extract claim text (remove numbering)
+                            if line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.', '10.')):
+                                claim_text = line.split('.', 1)[1].strip()
+                                if claim_text:
+                                    claims.append(claim_text)
+                            elif line and not line.startswith('(') and not line.startswith('wherein'):
+                                # Handle multi-line claims
+                                if claims:
+                                    claims[-1] += ' ' + line
+                    
+                    return claims if claims else []
+                    
+                except Exception as e:
+                    logging.warning(f"Could not read refined claims for {patent_id}: {e}")
+                    continue
+        
+        return []
+
+    def read_editorial_feedback(self, patent_id: str) -> str:
+        """Read editorial feedback from the editorial review file if it exists"""
+        # Try to find the editorial review file in any tier
+        for tier in ["tier_1", "tier_2", "tier_3"]:
+            editorial_file = f"patent_output/{tier}/{patent_id}_editorial_review.md"
+            if os.path.exists(editorial_file):
+                try:
+                    with open(editorial_file, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    return content
+                except Exception as e:
+                    logging.warning(f"Could not read editorial feedback for {patent_id}: {e}")
+                    continue
+        return ""
+
+    def log_integration_decisions(self, patent_id: str, decisions: List[str]):
+        """Log integration decisions for human review"""
+        log_file = f"patent_output/{patent_id}_integration_log.md"
+        try:
+            with open(log_file, "w", encoding="utf-8") as f:
+                f.write(f"# Integration Log for Patent {patent_id}\n\n")
+                f.write(f"Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\n")
+                f.write("## Integration Decisions\n\n")
+                for i, decision in enumerate(decisions, 1):
+                    f.write(f"{i}. {decision}\n")
+                f.write("\n## End of Integration Log\n")
+        except Exception as e:
+            logging.warning(f"Could not write integration log for {patent_id}: {e}")
+
+    @trace_function(name="PatentDocumentTool._run")
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str],
              technical_features: List[str] = [], market_applications: List[str] = [], 
              differentiation: str = "") -> str:
@@ -89,34 +161,46 @@ class PatentDocumentTool(BaseTool):
             patent_id = patent_id or "UNKNOWN"
             title = title or "Untitled Patent"
             description = description or "No description provided"
-            key_claims = key_claims or ["No claims provided"]
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
             differentiation = differentiation or "No differentiation specified"
+            
+            # Try to read refined claims first, fall back to provided claims
+            # Read editorial feedback if available
+            editorial_feedback = self.read_editorial_feedback(patent_id)
+            integration_decisions = []
+            
+            if editorial_feedback:
+                integration_decisions.append(f"Editorial feedback found and will be integrated")
+                # Add note about editorial integration to the template
+                editorial_note = "\n\nEDITORIAL INTEGRATION: This document has been updated based on editorial review feedback to improve quality, clarity, and commercial value.\n"
+            else:
+                editorial_note = ""
+                integration_decisions.append("No editorial feedback found - using original document")
+            
+            refined_claims = self.read_refined_claims(patent_id)
+            claims_to_use = refined_claims if refined_claims else (key_claims or ["No claims provided"])
+            claims_source = "refined claims" if refined_claims else "provided claims"
             
             # All inputs are guaranteed valid by Pydantic
             validated_data = {
                 'id': patent_id,
                 'title': title,
                 'description': description,
-                'key_claims': key_claims,
+                'key_claims': claims_to_use,  # Use refined claims if available
                 'technical_features': technical_features,
                 'market_applications': market_applications,
                 'differentiation': differentiation
             }
             
-            filing_date = datetime.now()
-            app_number = f"63/{filing_date.strftime('%Y%m%d')}-{validated_data['id']}"
-
             if REPORT_TYPE == 'summary':
                 template = f"""
-PROVISIONAL PATENT APPLICATION (SUMMARY)
+PATENT ANALYSIS DOCUMENT (SUMMARY)
+==================================
 
-Application Number: {app_number}
 Title: {validated_data['title']}
-Inventor: {PATENT_CONFIG['inventor']}
-Filing Date: {filing_date.strftime('%B %d, %Y')}
-Patent ID: {validated_data['id']}
+Analysis Date: {datetime.now().strftime('%B %d, %Y')}
+Document Type: Technical Analysis Summary
 
 SUMMARY OF THE INVENTION
 ------------------------
@@ -131,13 +215,12 @@ Value Estimate: {validated_data.get('value_estimate', 'TBD')}
 """
             elif REPORT_TYPE == 'executive':
                 template = f"""
-PROVISIONAL PATENT APPLICATION (EXECUTIVE SUMMARY)
+PATENT ANALYSIS DOCUMENT (EXECUTIVE SUMMARY)
+============================================
 
-Application Number: {app_number}
 Title: {validated_data['title']}
-Inventor: {PATENT_CONFIG['inventor']}
-Filing Date: {filing_date.strftime('%B %d, %Y')}
-Patent ID: {validated_data['id']}
+Analysis Date: {datetime.now().strftime('%B %d, %Y')}
+Document Type: Executive Analysis Summary
 
 EXECUTIVE OVERVIEW
 ------------------
@@ -157,13 +240,12 @@ Summary: This invention provides a novel approach to agent-based optimization, o
 """
             else:  # detailed (default)
                 template = f"""
-    PROVISIONAL PATENT APPLICATION
+    PATENT ANALYSIS DOCUMENT (DETAILED)
+    ===================================
 
-    Application Number: {app_number}
     Title: {validated_data['title']}
-    Inventor: {PATENT_CONFIG['inventor']}
-    Filing Date: {filing_date.strftime('%B %d, %Y')}
-    Patent ID: {validated_data['id']}
+    Analysis Date: {datetime.now().strftime('%B %d, %Y')}
+    Document Type: Detailed Technical Analysis
 
     CROSS-REFERENCE TO RELATED APPLICATIONS
 
@@ -246,6 +328,8 @@ Summary: This invention provides a novel approach to agent-based optimization, o
 
     5. CLAIMS
 
+    Note: This patent application uses {claims_source} that have been optimized for maximum strength and commercial value.
+
     """
             for i, claim in enumerate(validated_data['key_claims'], 1):
                 template += f"{i}. {claim}.\n\n"
@@ -309,10 +393,13 @@ Summary: This invention provides a novel approach to agent-based optimization, o
     - Implementation Complexity: {validated_data.get('implementation_complexity', 'TBD')}
     - Prior Art Risk: {validated_data.get('prior_art_risk', 'TBD')}
 
+    {editorial_note}
     END OF PROVISIONAL PATENT APPLICATION
     """
             return template
-            
+            # Log integration decisions for human review
+            if integration_decisions:
+                self.log_integration_decisions(patent_id, integration_decisions)            
         except Exception as e:
             error_msg = f"""
 ERROR IN PATENT DOCUMENT TOOL

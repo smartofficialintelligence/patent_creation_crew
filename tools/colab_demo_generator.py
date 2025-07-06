@@ -152,8 +152,8 @@ Input Parameters Received:
                     "**Editorial Feedback Summary**:\n",
                     f"{editorial_feedback[:500]}{'...' if len(editorial_feedback) > 500 else ''}\n\n",
                     "---\n"
-                ]
-            })
+            ]
+        })
         
         # Add setup cell
         notebook["cells"].append({

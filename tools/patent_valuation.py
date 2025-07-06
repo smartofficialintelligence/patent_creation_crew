@@ -4,8 +4,10 @@ import re
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
+import json
+from core.langsmith_utils import trace_function
 
 class PatentValuationInput(BaseModel):
     patent_id: str
@@ -88,6 +90,7 @@ class PatentValuationTool(BaseTool):
             'ml': 25.0,
         }
 
+    @trace_function(name="PatentValuationTool._run")
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str],
              technical_features: List[str] = [], market_applications: List[str] = [],
              implementation_complexity: str = "Medium", prior_art_risk: str = "Medium",
@@ -141,6 +144,32 @@ class PatentValuationTool(BaseTool):
                 risk_factor, regulatory_factor, competitive_factor, market_applications,
                 technical_features, prior_art_risk, implementation_complexity, regulatory_compliance
             )
+            
+            # Add structured JSON data at the end for aggregation
+            structured_data = {
+                "patent_id": patent_id,
+                "title": title,
+                "valuation": {
+                    "low_value": final_value['low_value'],
+                    "high_value": final_value['high_value'],
+                    "mid_value": final_value['mid_value'],
+                    "category": final_value['category'],
+                    "confidence": final_value['confidence']
+                },
+                "factors": {
+                    "base_value": base_value,
+                    "market_factor": market_factor,
+                    "innovation_factor": innovation_factor,
+                    "risk_factor": risk_factor,
+                    "regulatory_factor": regulatory_factor,
+                    "competitive_factor": competitive_factor
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Append structured data as JSON comment for easy extraction
+            json_data = json.dumps(structured_data, indent=2)
+            report += f"\n\n<!-- VALUATION_JSON_DATA\n{json_data}\nVALUATION_JSON_DATA -->"
             
             return report
             

@@ -6,7 +6,7 @@ Wraps existing tools with retry logic and error recovery
 
 import logging
 from typing import Dict, Any, Callable, Optional
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 import logging
 

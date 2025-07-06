@@ -14,6 +14,12 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+def clean_patent_id(patent_id: str) -> str:
+    """Remove NEW- prefix from patent ID for file naming"""
+    if patent_id.startswith("NEW-"):
+        return patent_id[4:]  # Remove "NEW-" prefix
+    return patent_id
+
 @dataclass
 class AssetStatus:
     """Status of a specific asset for a patent"""
@@ -182,7 +188,7 @@ class IncrementalProcessor:
                     
                 output_file = task_config['output_file'].format(
                     tier=patent_idea.get('tier', 'unknown'),
-                    id=patent_id
+                    id=clean_patent_id(patent_id)
                 )
                 
                 asset_status = self.get_asset_status(patent_id, task_name, output_file)
@@ -229,7 +235,10 @@ class IncrementalProcessor:
         logger.info(f"Total Tasks: {summary['total_tasks']}")
         logger.info(f"Existing Assets: {existing_assets}")
         logger.info(f"Missing Assets: {missing_assets}")
-        logger.info(f"Completion Rate: {(existing_assets/total_assets)*100:.1f}%")
+        if total_assets > 0:
+            logger.info(f"Completion Rate: {(existing_assets/total_assets)*100:.1f}%")
+        else:
+            logger.info("Completion Rate: N/A (no patents to process)")
         
         if missing_assets > 0:
             logger.info("\n🔄 MISSING ASSETS:")

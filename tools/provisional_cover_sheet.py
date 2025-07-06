@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel
 
 # Import from core modules
@@ -56,27 +56,22 @@ class ProvisionalCoverSheetTool(BaseTool):
             assignee = validated_data.get('assignee', 'Patent Holder')
             attorney_docket = validated_data.get('attorney_docket', f'PAT-{patent_id}')
             
-            # Generate filing date (today's date)
-            filing_date = datetime.now().strftime('%m/%d/%Y')
-            
             # Calculate page count estimate (rough estimate: 1 page per 500 words)
             word_count = len(description.split())
             estimated_pages = max(1, (word_count // 500) + 1)
             
             # Generate cover sheet content
             cover_sheet = f"""
-PROVISIONAL APPLICATION FOR PATENT COVER SHEET
-==============================================
+PATENT ANALYSIS COVER SHEET
+==========================
 
-[37 CFR 1.51(c)(1)]
+DOCUMENT INFORMATION:
+====================
 
-PATENT APPLICATION INFORMATION:
-==============================
-
-Application Number: [To be assigned by USPTO]
-Attorney Docket Number: {attorney_docket}
-Filing Date: {filing_date}
-Application Type: Provisional Application for Patent
+Document Type: Patent Analysis Cover Sheet
+Analysis Date: {datetime.now().strftime('%m/%d/%Y')}
+Reference Number: {attorney_docket}
+Document Purpose: Technical Analysis and Research
 
 TITLE OF INVENTION:
 ==================

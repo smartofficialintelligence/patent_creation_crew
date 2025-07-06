@@ -7,9 +7,10 @@ import time
 import re
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, validator
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from datetime import datetime
 import json
+from core.langsmith_utils import trace_function
 
 # Copy validate_patent_dict from the main file
 
@@ -86,6 +87,7 @@ class RealPatentSearchTool(BaseTool):
         if not self.epo_api_key:
             logging.warning("EPO_API_KEY not found in environment variables")
 
+    @trace_function(name="RealPatentSearchTool._run")
     def _run(self, patent_id: str = None, title: str = None, description: str = None, key_claims: List[str] = None,
              technical_features: List[str] = None, market_applications: List[str] = None, 
              differentiation: str = None, keywords: List[str] = None, query: str = None) -> str:
@@ -184,7 +186,7 @@ Input Parameters Received:
 - key_claims count: {len(key_claims) if key_claims else 0}
 - technical_features count: {len(technical_features) if technical_features else 0}
 - market_applications count: {len(market_applications) if market_applications else 0}
-- value_estimate: {value_estimate}
+- value_estimate: {'N/A'}
 - differentiation length: {len(differentiation) if differentiation else 0} characters
 
 API Status:
