@@ -16,7 +16,7 @@ def cleanup_old_assets():
     """Move old patent assets to a backup location"""
     
     # Define the new Tier 1 patents
-    new_tier_1_patents = ['P000', 'NEW-P001', 'NEW-P002', 'NEW-P003', 'NEW-P004']
+    new_tier_1_patents = ['P000', 'P001', 'P002', 'P003', 'P004']
     
     # Create backup directory
     backup_dir = Path("patent_output/backup_old_assets")

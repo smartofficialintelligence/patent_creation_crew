@@ -97,7 +97,7 @@ PATENT_IDEAS = {
             "economic_value_drivers": ["Foundational technology", "Broad applicability", "Regulatory compliance"]
         },
         {
-            "id": "NEW-P001",
+            "id": "P001",
             "title": "Unified Semantic Agent Architecture & Coordination",
             "description": "Unified system for hierarchical, swarm-based, and temporal semantic agent coordination, enabling complex problem decomposition, emergent optimization, and time-aware reasoning.",
             "key_claims": [
@@ -149,7 +149,7 @@ PATENT_IDEAS = {
             "economic_value_drivers": ["Unified coordination", "Emergent optimization", "Time-aware reasoning"]
         },
         {
-            "id": "NEW-P002",
+            "id": "P002",
             "title": "Semantic Memory & Tool Integration Framework",
             "description": "Framework for integrating visual and other tools with semantic memory, enabling agents to process and store data efficiently with high-fidelity reasoning.",
             "key_claims": [
@@ -194,7 +194,7 @@ PATENT_IDEAS = {
             "economic_value_drivers": ["Visual integration", "Memory efficiency", "High-fidelity reasoning"]
         },
         {
-            "id": "NEW-P003",
+            "id": "P003",
             "title": "Native Interpretability & Regulatory Compliance Suite",
             "description": "Comprehensive system for native interpretability, causal reasoning, visualization, and multi-jurisdictional regulatory compliance in semantic agent optimization.",
             "key_claims": [
@@ -239,7 +239,7 @@ PATENT_IDEAS = {
             "economic_value_drivers": ["Native interpretability", "Regulatory compliance", "Causal reasoning"]
         },
         {
-            "id": "NEW-P004",
+            "id": "P004",
             "title": "Semantic Security & Privacy Framework",
             "description": "Comprehensive security and privacy system for semantic agents, including authentication, encrypted reasoning, and adversarial defense.",
             "key_claims": [

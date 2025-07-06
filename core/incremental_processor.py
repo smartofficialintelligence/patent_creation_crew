@@ -15,9 +15,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 def clean_patent_id(patent_id: str) -> str:
-    """Remove NEW- prefix from patent ID for file naming"""
-    if patent_id.startswith("NEW-"):
-        return patent_id[4:]  # Remove "NEW-" prefix
+    """Return patent ID as-is (no prefix removal)"""
     return patent_id
 
 @dataclass

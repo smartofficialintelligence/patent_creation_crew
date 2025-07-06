@@ -255,9 +255,7 @@ def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, A
     return tasks
 
 def clean_patent_id(patent_id: str) -> str:
-    """Remove NEW- prefix from patent ID for file naming"""
-    if patent_id.startswith("NEW-"):
-        return patent_id[4:]  # Remove "NEW-" prefix
+    """Return patent ID as-is (no prefix removal)"""
     return patent_id
 
 def read_refined_claims(patent_id: str, tier: str) -> List[str]:
@@ -398,6 +396,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             total_tasks += len(patent_ideas) * 10  # Approximate tasks per patent
     
     # Initialize resource monitoring and progress tracking
+    progress_tracker = None  # Initialize before try-except to avoid scope issues
     try:
         initialize_monitoring(total_patents, total_tasks)
         logger.info("✅ Resource monitoring and progress tracking initialized successfully")
