@@ -16,10 +16,10 @@ class ResourceManager:
     """Resource management and monitoring for local laptop use"""
     
     def __init__(self, 
-                 max_memory_gb: float = 4.0,
-                 max_cpu_percent: float = 80.0,
-                 max_disk_gb: float = 2.0,
-                 timeout_minutes: int = 60,
+                 max_memory_gb: float = 12.0,  # Optimized for 16GB M1 Mac Pro (75% of total RAM)
+                 max_cpu_percent: float = 85.0,  # Slightly higher for M1 efficiency
+                 max_disk_gb: float = 4.0,  # More generous disk space for outputs
+                 timeout_minutes: int = 120,  # Longer timeout for complex processing
                  check_interval: int = 30):
         
         self.max_memory_gb = max_memory_gb

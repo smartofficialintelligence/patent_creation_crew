@@ -197,10 +197,10 @@ The system now includes comprehensive retry and recovery mechanisms:
 The system now includes comprehensive resource management and monitoring for local laptop use:
 
 ### Resource Monitoring
-- **Memory tracking**: Monitors RAM usage with configurable limits (default: 4GB)
-- **CPU monitoring**: Tracks CPU usage with percentage limits (default: 80%)
-- **Disk usage**: Monitors output directory size (default: 2GB limit)
-- **Time limits**: Configurable processing timeout (default: 60 minutes)
+- **Memory tracking**: Monitors RAM usage with configurable limits (default: 12GB for M1 Mac Pro)
+- **CPU monitoring**: Tracks CPU usage with percentage limits (default: 85% for M1 efficiency)
+- **Disk usage**: Monitors output directory size (default: 4GB limit for generous outputs)
+- **Time limits**: Configurable processing timeout (default: 120 minutes for complex processing)
 - **Real-time alerts**: Warns when resource limits are approached
 
 ### Progress Tracking
@@ -218,14 +218,21 @@ The system now includes comprehensive resource management and monitoring for loc
 
 ### Usage Examples
 
-1. **Run with default resource limits**:
+1. **Run with M1 Mac Pro optimized defaults**:
    ```bash
    python run_patent_automation.py
    ```
 
-2. **Configure resource limits**:
+2. **Configure resource limits for your system**:
    ```bash
-   python run_patent_automation.py --max-memory 8.0 --max-cpu 90 --timeout 120
+   # For older laptops (8GB RAM)
+   python run_patent_automation.py --max-memory 6.0 --max-cpu 70 --timeout 60
+   
+   # For high-end systems (32GB+ RAM)
+   python run_patent_automation.py --max-memory 24.0 --max-cpu 90 --timeout 180
+   
+   # For M1 Mac Pro (16GB RAM) - current defaults
+   python run_patent_automation.py --max-memory 12.0 --max-cpu 85 --timeout 120
    ```
 
 3. **Disable monitoring**:
@@ -240,7 +247,7 @@ The system now includes comprehensive resource management and monitoring for loc
 
 5. **Monitor with custom limits for large runs**:
    ```bash
-   python run_patent_automation.py --max-memory 16.0 --max-cpu 95 --timeout 180 --max-disk 5.0
+   python run_patent_automation.py --max-memory 16.0 --max-cpu 95 --timeout 180 --max-disk 8.0
    ```
 
 ### Resource Management Features
@@ -259,11 +266,13 @@ The system provides real-time monitoring output including:
 - Performance metrics and averages
 
 ### Best Practices
-- **Start conservative**: Begin with default limits and adjust based on your system
+- **M1 Mac Pro (16GB RAM)**: Default settings are optimized for your system (12GB memory, 85% CPU, 120min timeout)
+- **Older laptops (8GB RAM)**: Use `--max-memory 6.0 --max-cpu 70 --timeout 60`
+- **High-end systems (32GB+ RAM)**: Use `--max-memory 24.0 --max-cpu 90 --timeout 180`
 - **Monitor during first run**: Use `python scripts/monitor_status.py` to check resource usage
-- **Adjust for your hardware**: Increase limits for high-end systems, decrease for older laptops
 - **Consider background processes**: Account for other applications when setting limits
 - **Use timeout protection**: Set reasonable timeouts to prevent runaway processes
+- **M1 efficiency**: The M1 chip can handle higher CPU percentages efficiently, so 85% is safe
 
 ## 📊 Patent Portfolio
 

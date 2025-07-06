@@ -654,14 +654,14 @@ def main():
                        help='Clear the log file before starting automation')
     
     # Resource management arguments
-    parser.add_argument('--max-memory', type=float, default=4.0,
-                       help='Maximum memory usage in GB (default: 4.0)')
-    parser.add_argument('--max-cpu', type=float, default=80.0,
-                       help='Maximum CPU usage percentage (default: 80.0)')
-    parser.add_argument('--max-disk', type=float, default=2.0,
-                       help='Maximum disk usage in GB (default: 2.0)')
-    parser.add_argument('--timeout', type=int, default=60,
-                       help='Maximum processing time in minutes (default: 60)')
+    parser.add_argument('--max-memory', type=float, default=12.0,
+                       help='Maximum memory usage in GB (default: 12.0 for M1 Mac Pro)')
+    parser.add_argument('--max-cpu', type=float, default=85.0,
+                       help='Maximum CPU usage percentage (default: 85.0 for M1 efficiency)')
+    parser.add_argument('--max-disk', type=float, default=4.0,
+                       help='Maximum disk usage in GB (default: 4.0 for generous outputs)')
+    parser.add_argument('--timeout', type=int, default=120,
+                       help='Maximum processing time in minutes (default: 120 for complex processing)')
     parser.add_argument('--no-monitoring', action='store_true',
                        help='Disable resource monitoring')
     
