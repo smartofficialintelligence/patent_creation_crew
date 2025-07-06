@@ -85,9 +85,34 @@ def clear_vector_cache():
         except Exception as e:
             logger.warning(f"Could not clear vector cache: {e}")
 
+def initialize_smart_cache():
+    """Initialize smart cache manager with health check"""
+    try:
+        from lib.smart_cache_manager import smart_cache
+        
+        # Perform health check
+        health_status = smart_cache.health_check()
+        
+        if health_status.get('is_healthy', False):
+            logger.info("✅ Smart cache initialized successfully")
+            
+            # Show cache stats
+            stats = smart_cache.get_cache_stats()
+            if stats:
+                logger.info(f"📊 Cache stats: {stats['total_entries']} entries, {stats['total_size_mb']:.1f}MB used")
+                logger.info(f"   Utilization: {stats['utilization_percent']:.1f}% of {stats['max_size_mb']:.1f}MB limit")
+        else:
+            logger.warning("⚠️ Smart cache health check failed, but continuing")
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize smart cache: {e}")
+        return False
+
 def clear_output_directories():
     """Clear output directories before starting"""
-    output_dir = Path("patent_output")
+    output_dir = Path("output")
     if output_dir.exists():
         try:
             shutil.rmtree(output_dir)
@@ -98,7 +123,7 @@ def clear_output_directories():
 
 def setup_output_directories():
     """Create output directories"""
-    base_dir = Path("patent_output")
+    base_dir = Path("output")
     base_dir.mkdir(exist_ok=True)
     
     for tier in ['tier_1', 'tier_2', 'tier_3', 'tier_4']:
@@ -269,7 +294,7 @@ def clean_patent_id(patent_id: str) -> str:
 def read_refined_claims(patent_id: str, tier: str) -> List[str]:
     """Read refined claims from the refined claims file if it exists"""
     cleaned_id = clean_patent_id(patent_id)
-    refined_claims_file = f"patent_output/{tier}/{cleaned_id}_refined_claims.md"
+    refined_claims_file = f"output/{tier}/{cleaned_id}_refined_claims.md"
     
     if not os.path.exists(refined_claims_file):
         return []
@@ -364,11 +389,14 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         incremental_processor.force_regenerate_all()
         logger.info("🔄 Force regeneration enabled - will recreate all assets")
     
-    # Clear cache and outputs to prevent context size growth (only if not incremental or force regenerate)
-    if clear_cache and (not incremental or force_regenerate):
-        clear_vector_cache()
-        if force_regenerate:
-            clear_output_directories()
+    # Initialize smart cache instead of clearing vector cache
+    if clear_cache:
+        initialize_smart_cache()
+    
+    # Clear outputs only if force regenerate
+    if force_regenerate:
+        clear_output_directories()
+        logger.info("🔄 Force regeneration: cleared output directories")
     elif incremental:
         logger.info("🔄 Incremental mode: preserving existing outputs")
     
@@ -595,7 +623,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 patent_ideas = PATENT_IDEAS[tier_key]
                 for patent in patent_ideas:
                     # Look for valuation output files
-                    valuation_file = f"patent_output/{tier_key}/{patent['id']}_valuation_report.md"
+                    valuation_file = f"output/{tier_key}/{patent['id']}_valuation_report.md"
                     valuation_files.append(valuation_file)
         
         valuation_data_list = collect_valuation_results_from_outputs(valuation_files)

@@ -133,7 +133,7 @@ def main():
     """Test the valuation extraction and aggregation"""
     
     # Read the existing valuation report
-    report_path = "patent_output/tier_1/P000_valuation_report.md"
+    report_path = "output/tier_1/P000_valuation_report.md"
     
     if not Path(report_path).exists():
         print(f"Valuation report not found: {report_path}")

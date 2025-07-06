@@ -146,7 +146,7 @@ class RealPatentSearchTool(BaseTool):
             analyzed_results = self._analyze_search_results(all_results, validated_data)
 
             # Save raw search results for manual review
-            out_dir = os.path.join('patent_output', tier)
+            out_dir = os.path.join('output', tier)
             os.makedirs(out_dir, exist_ok=True)
             out_file = os.path.join(out_dir, f"{patent_id}_patent_search_results.json")
             try:
@@ -236,7 +236,7 @@ API Status:
         return unique_queries
 
     def _search_lens(self, queries: List[str]) -> List[Dict]:
-        """Search Lens.org API"""
+        """Search Lens.org API with smart caching"""
         results = []
         
         if not self.lens_api_key:
@@ -244,9 +244,24 @@ API Status:
             print("[Lens.org] LENS_API_KEY not found in environment variables or not set.")
             return results
         
+        # Import smart cache manager
+        from lib.smart_cache_manager import smart_cache
+        
         for query in queries[:3]:  # Limit to top 3 queries for rate limiting
             try:
-                # Lens.org API
+                # Generate cache key for this query
+                cache_key = f"lens_search_{hashlib.md5(query.encode()).hexdigest()}"
+                
+                # Check cache first
+                cached_results = smart_cache.get(cache_key, "patent_data")
+                if cached_results is not None:
+                    logger.info(f"✅ Cache hit for Lens search: {query[:50]}...")
+                    results.extend(cached_results)
+                    continue
+                
+                # Perform API call if not cached
+                logger.info(f"🔄 Performing Lens search: {query[:50]}...")
+                
                 url = f"{self.lens_base_url}/patent/search"
                 headers = {
                     'Authorization': f'Bearer {self.lens_api_key}',
@@ -264,6 +279,20 @@ API Status:
                     data = response.json()
                     print(f"[Lens.org] API call successful. Number of results: {len(data.get('data', []))}")
                     lens_results = self._parse_lens_results(data, query)
+                    
+                    # Cache the results
+                    smart_cache.set(
+                        cache_key,
+                        lens_results,
+                        "patent_data",
+                        "lens",
+                        {
+                            "query": query,
+                            "results_count": len(lens_results),
+                            "search_date": datetime.now().isoformat()
+                        }
+                    )
+                    
                     results.extend(lens_results)
                 else:
                     print(f"[Lens.org] API call failed. Status: {response.status_code}, Response: {response.text}")

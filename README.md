@@ -36,7 +36,7 @@ method-patent/
 │   └── test_valuation.py
 ├── scripts/               # Utility scripts
 │   └── cleanup_tools.py
-├── patent_output/         # Generated patent documents
+├── output/         # Generated patent documents
 │   ├── tier_1/
 │   ├── tier_2/
 │   ├── tier_3/
@@ -130,6 +130,31 @@ If you encounter missing module errors (like `ModuleNotFoundError: No module nam
    which python
    # Should show: /path/to/patent-pipeline/venv/bin/python
    ```
+
+### Smart Cache Management
+The system now uses intelligent caching to avoid re-downloading content:
+
+```bash
+# View cache statistics
+python scripts/manage_smart_cache.py --stats
+
+# Check cache health
+python scripts/manage_smart_cache.py --health
+
+# Clear specific cache types
+python scripts/manage_smart_cache.py --clear-type patent_data
+python scripts/manage_smart_cache.py --clear-type academic_papers
+python scripts/manage_smart_cache.py --clear-type embeddings
+
+# Clear all cache
+python scripts/manage_smart_cache.py --clear
+
+# Performance analysis
+python scripts/manage_smart_cache.py --performance
+
+# Show all commands
+python scripts/manage_smart_cache.py --help-commands
+```
 
 ### Context Size Issues
 If you encounter context length errors:
@@ -394,7 +419,7 @@ All configuration is YAML-based in the `config/` directory:
 
 ## 📈 Output
 
-Generated documents are saved to `patent_output/` organized by tiers:
+Generated documents are saved to `output/` organized by tiers:
 - Prior art analysis
 - Refined claims
 - Patent applications

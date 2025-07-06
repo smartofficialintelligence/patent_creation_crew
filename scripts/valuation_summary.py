@@ -25,12 +25,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def find_valuation_files(tier_filter: str = None) -> list:
-    """Find all valuation output files in the patent_output directory."""
+    """Find all valuation output files in the output directory."""
     valuation_files = []
-    output_dir = Path("patent_output")
+    output_dir = Path("output")
     
     if not output_dir.exists():
-        logger.warning("patent_output directory not found")
+        logger.warning("output directory not found")
         return valuation_files
     
     # Determine which tiers to process

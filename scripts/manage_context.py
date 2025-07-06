@@ -61,7 +61,7 @@ def clear_vector_cache():
 
 def clear_output_directories():
     """Clear patent output directories"""
-    output_dir = Path("patent_output")
+    output_dir = Path("output")
     if output_dir.exists():
         try:
             size_before = get_directory_size(output_dir)
@@ -96,7 +96,7 @@ def show_system_status():
         logger.info("Vector Cache: Not found")
     
     # Check output directories
-    output_dir = Path("patent_output")
+    output_dir = Path("output")
     if output_dir.exists():
         output_size = get_directory_size(output_dir)
         output_files = len(list(output_dir.rglob("*")))

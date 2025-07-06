@@ -45,7 +45,7 @@ class SmartClaimRefinementTool(BaseTool):
 
     def log_claim_refinement(self, patent_id: str, original_claims: List[str], refined_claims: List[str]):
         """Log claim refinement decisions for human review"""
-        log_file = f"patent_output/{patent_id}_claim_refinement_log.md"
+        log_file = f"output/{patent_id}_claim_refinement_log.md"
         try:
             with open(log_file, "w", encoding="utf-8") as f:
                 f.write(f"# Claim Refinement Log for Patent {patent_id}\n\n")

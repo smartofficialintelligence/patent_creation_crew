@@ -93,16 +93,62 @@ class VectorBasedOverlapAnalysisTool(BaseTool):
             self.model = None
     
     def _get_embeddings(self, texts: List[str]) -> Any:
-        """Get embeddings for a list of texts"""
+        """Get embeddings for a list of texts with smart caching"""
         if self.model is None:
             self._load_model()
         if self.model is None:
             return None
+        
         try:
-            return self.model.encode(texts, show_progress_bar=False)
+            # Import smart cache manager
+            from lib.smart_cache_manager import smart_cache
+            
+            # Check cache for each text
+            cached_embeddings = []
+            texts_to_encode = []
+            text_indices = []
+            
+            for i, text in enumerate(texts):
+                cache_key = smart_cache.get_embedding_cache_key(text, self.model_name)
+                cached_embedding = smart_cache.get(cache_key, "embeddings")
+                
+                if cached_embedding is not None:
+                    cached_embeddings.append((i, cached_embedding))
+                else:
+                    texts_to_encode.append(text)
+                    text_indices.append(i)
+            
+            # Generate embeddings for uncached texts
+            if texts_to_encode:
+                new_embeddings = self.model.encode(texts_to_encode, show_progress_bar=False)
+                
+                # Cache new embeddings
+                for i, (text, embedding) in enumerate(zip(texts_to_encode, new_embeddings)):
+                    cache_key = smart_cache.get_embedding_cache_key(text, self.model_name)
+                    smart_cache.set(
+                        cache_key, 
+                        embedding.tolist(),  # Convert numpy array to list for JSON serialization
+                        "embeddings", 
+                        "sentence_transformer",
+                        {"model": self.model_name, "text_length": len(text)}
+                    )
+                    cached_embeddings.append((text_indices[i], embedding))
+            
+            # Reconstruct embeddings in original order
+            if cached_embeddings:
+                cached_embeddings.sort(key=lambda x: x[0])  # Sort by original index
+                return np.array([emb for _, emb in cached_embeddings])
+            else:
+                return None
+                
         except Exception as e:
             print(f"⚠️ Error generating embeddings: {e}")
-            return None
+            # Fallback to direct encoding without caching
+            try:
+                return self.model.encode(texts, show_progress_bar=False)
+            except Exception as fallback_error:
+                print(f"⚠️ Fallback encoding also failed: {fallback_error}")
+                return None
     
     def _calculate_semantic_similarity(self, claim_embeddings: np.ndarray, prior_art_embeddings: np.ndarray) -> np.ndarray:
         """Calculate cosine similarity between claim and prior art embeddings"""

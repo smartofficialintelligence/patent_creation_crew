@@ -173,10 +173,25 @@ ArXiv Status:
         return unique_queries
     
     def _search_arxiv(self, query: str) -> List[Dict]:
-        """Search arXiv using the arxiv-python library"""
+        """Search arXiv using the arxiv-python library with smart caching"""
         results = []
         
+        # Import smart cache manager
+        from lib.smart_cache_manager import smart_cache
+        
         try:
+            # Generate cache key for this query
+            cache_key = f"arxiv_search_{hashlib.md5(query.encode()).hexdigest()}"
+            
+            # Check cache first
+            cached_results = smart_cache.get(cache_key, "academic_papers")
+            if cached_results is not None:
+                logger.info(f"✅ Cache hit for arXiv search: {query[:50]}...")
+                return cached_results
+            
+            # Perform search if not cached
+            logger.info(f"🔄 Performing arXiv search: {query[:50]}...")
+            
             # Configure search
             search = arxiv.Search(
                 query=query,
@@ -198,6 +213,19 @@ ArXiv Status:
                     'relevance_score': 0.0  # Will be calculated later
                 }
                 results.append(paper_data)
+            
+            # Cache the results
+            smart_cache.set(
+                cache_key,
+                results,
+                "academic_papers",
+                "arxiv",
+                {
+                    "query": query,
+                    "results_count": len(results),
+                    "search_date": datetime.now().isoformat()
+                }
+            )
                 
         except Exception as e:
             logging.error(f"ArXiv search error for query '{query}': {e}")

@@ -139,10 +139,10 @@ class ColabDemoGeneratorTool(BaseTool):
 
             # Output file logic
             if editorial_feedback:
-                notebook_file = f"patent_output/{tier}/{patent_id}_colab_demo_final.ipynb"
+                notebook_file = f"output/{tier}/{patent_id}_colab_demo_final.ipynb"
                 log_message = f"✅ Final Colab notebook generated with editorial feedback: {notebook_file}"
             else:
-                notebook_file = f"patent_output/{tier}/{patent_id}_colab_demo.ipynb"
+                notebook_file = f"output/{tier}/{patent_id}_colab_demo.ipynb"
                 log_message = f"✅ Initial Colab notebook generated: {notebook_file}"
             os.makedirs(os.path.dirname(notebook_file), exist_ok=True)
             try:

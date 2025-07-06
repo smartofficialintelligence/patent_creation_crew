@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RecoveryManager:
-    def __init__(self, recovery_file: str = "patent_output/recovery_data.json"):
+    def __init__(self, recovery_file: str = "output/recovery_data.json"):
         self.retry_manager = RetryManager(recovery_file=recovery_file)
         self.recovery_file = Path(recovery_file)
     
@@ -153,7 +153,7 @@ class RecoveryManager:
         else:
             logger.info("No recovery data file found")
     
-    def generate_recovery_report(self, output_file: str = "patent_output/recovery_report.md"):
+    def generate_recovery_report(self, output_file: str = "output/recovery_report.md"):
         """Generate a comprehensive recovery report"""
         summary = self.retry_manager.get_execution_summary()
         failed_executions = self.retry_manager.get_failed_executions()
@@ -241,8 +241,8 @@ def main():
                        help='Show detailed execution info for patent and tool')
     parser.add_argument('--export', type=str, help='Export recovery data to file')
     parser.add_argument('--clear', action='store_true', help='Clear all recovery data')
-    parser.add_argument('--report', type=str, default='patent_output/recovery_report.md',
-                       help='Generate recovery report (default: patent_output/recovery_report.md)')
+    parser.add_argument('--report', type=str, default='output/recovery_report.md',
+help='Generate recovery report (default: output/recovery_report.md)')
     
     args = parser.parse_args()
     

@@ -52,7 +52,7 @@ prior_art_research:
     - Risk assessment and mitigation strategiesc
     - Specific claim refinement suggestions
   output_pydantic: tools.real_patent_search.RealPatentSearchInput
-  output_file: "patent_output/{tier}/{id}_prior_art_analysis.md"
+  output_file: "output/{tier}/{id}_prior_art_analysis.md"
   agent: patent_researcher
 
 claims_refinement:
@@ -105,7 +105,7 @@ claims_refinement:
     - Amendment strategy and fallback positions
     - Commercial value optimization analysis
   output_pydantic: tools.smart_claim_refinement.SmartClaimRefinementInput
-  output_file: "patent_output/{tier}/{id}_refined_claims.md"
+  output_file: "output/{tier}/{id}_refined_claims.md"
   agent: claims_specialist
   context: [prior_art_research]
 
@@ -174,7 +174,7 @@ patent_document:
     - Prior art differentiation section
     - Conclusion and filing recommendations
   output_pydantic: tools.patent_document.PatentDocumentInput
-  output_file: "patent_output/{tier}/{id}_patent_application.md"
+  output_file: "output/{tier}/{id}_patent_application.md"
   agent: patent_writer
   context: [prior_art_research, claims_refinement]
 
@@ -241,7 +241,7 @@ architecture_diagram:
     - Performance optimization diagrams
     - Professional diagram documentation and legends
   output_pydantic: tools.architecture_diagram.ArchitectureDiagramInput
-  output_file: "patent_output/{tier}/{id}_architecture_diagrams.md"
+  output_file: "output/{tier}/{id}_architecture_diagrams.md"
   agent: diagram_specialist
   context: [prior_art_research, claims_refinement, patent_document]
 
@@ -287,7 +287,7 @@ legal_review:
     - Risk assessment and mitigation recommendations
     - Prosecution budget and timeline estimates
     - Final filing recommendation (PROCEED/MODIFY/DELAY)
-  output_file: "patent_output/{tier}/{id}_legal_review.md"
+  output_file: "output/{tier}/{id}_legal_review.md"
   agent: legal_reviewer
   context: [prior_art_research, claims_refinement, patent_integration]
 
@@ -336,7 +336,7 @@ associate_editor_review:
     - Prior art integration enhancement ideas
     - Commercial value optimization suggestions
     - Professional, constructive feedback for senior editor consideration
-  output_file: "patent_output/{tier}/{id}_associate_editor_review.md"
+  output_file: "output/{tier}/{id}_associate_editor_review.md"
   agent: associate_editor
   context: [prior_art_research, claims_refinement, patent_document]
 
@@ -415,7 +415,7 @@ editorial_review:
     - Integration instructions for patent writer
     - Evaluation of associate editor feedback and reasoning for adopted/rejected suggestions
   output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
-  output_file: "patent_output/{tier}/{id}_editorial_review.md"
+  output_file: "output/{tier}/{id}_editorial_review.md"
   agent: editor
   context: [prior_art_research, claims_refinement, patent_document, associate_editor_review]
 
@@ -462,7 +462,7 @@ patent_integration:
     - Complete, professional patent application
     - Integration log for human review
   output_pydantic: tools.patent_document.PatentDocumentInput
-  output_file: "patent_output/{tier}/{id}_patent_application_final.md"
+  output_file: "output/{tier}/{id}_patent_application_final.md"
   agent: patent_writer
   context: [prior_art_research, claims_refinement, patent_document, editorial_review]
 
@@ -507,7 +507,7 @@ cover_sheet:
     - Professional formatting and presentation
     - Research documentation standards
   output_pydantic: tools.provisional_cover_sheet.ProvisionalCoverSheetInput
-  output_file: "patent_output/{tier}/{id}_cover_sheet.md"
+  output_file: "output/{tier}/{id}_cover_sheet.md"
   agent: cover_sheet_specialist
   context: [prior_art_research, claims_refinement, patent_document, legal_review, patent_integration, colab_demo_generation, colab_demo_editorial_review, colab_demo_integration]
 
@@ -574,7 +574,7 @@ patent_valuation:
     - Value optimization recommendations
     - Filing strategy and priority recommendations
   output_pydantic: tools.patent_valuation.PatentValuationInput
-  output_file: "patent_output/{tier}/{id}_valuation_report.md"
+  output_file: "output/{tier}/{id}_valuation_report.md"
   agent: valuation_expert
   context: [prior_art_research, claims_refinement]
 
@@ -629,7 +629,7 @@ colab_demo_generation:
     - Clear technical disclosure supporting patent scope and claims
     - Professional documentation suitable for patent examiner review
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
-  output_file: "patent_output/{tier}/{id}_colab_demo.ipynb"
+  output_file: "output/{tier}/{id}_colab_demo.ipynb"
   agent: patent_writer
   context: [prior_art_research, claims_refinement, patent_integration]
 
@@ -680,7 +680,7 @@ colab_demo_editorial_review:
     - User experience and accessibility optimization suggestions
     - Professional, constructive feedback for patent writer consideration
   output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
-  output_file: "patent_output/{tier}/{id}_colab_demo_editorial_review.md"
+  output_file: "output/{tier}/{id}_colab_demo_editorial_review.md"
   agent: editor
   context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation]
 
@@ -740,7 +740,7 @@ colab_demo_integration:
     - Accurate patent technology demonstration
     - Integration log for human review
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
-  output_file: "patent_output/{tier}/{id}_colab_demo_final.ipynb"
+  output_file: "output/{tier}/{id}_colab_demo_final.ipynb"
   agent: patent_writer
   context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, colab_demo_editorial_review]
 

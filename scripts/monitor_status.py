@@ -90,7 +90,7 @@ def main():
         print(f"\n📝 No log file found")
     
     # Check output directories
-    output_dir = Path("patent_output")
+    output_dir = Path("output")
     if output_dir.exists():
         print(f"\n📁 OUTPUT DIRECTORY:")
         total_files = 0

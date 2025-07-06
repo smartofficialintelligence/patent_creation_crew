@@ -83,7 +83,7 @@ class PatentDocumentTool(BaseTool):
         """Read refined claims from the refined claims file if it exists"""
         # Try to find the refined claims file in any tier
         for tier in ['tier_1', 'tier_2', 'tier_3']:
-            refined_claims_file = f"patent_output/{tier}/{patent_id}_refined_claims.md"
+            refined_claims_file = f"output/{tier}/{patent_id}_refined_claims.md"
             if os.path.exists(refined_claims_file):
                 try:
                     with open(refined_claims_file, 'r', encoding='utf-8') as f:
@@ -124,7 +124,7 @@ class PatentDocumentTool(BaseTool):
         """Read editorial feedback from the editorial review file if it exists"""
         # Try to find the editorial review file in any tier
         for tier in ["tier_1", "tier_2", "tier_3"]:
-            editorial_file = f"patent_output/{tier}/{patent_id}_editorial_review.md"
+            editorial_file = f"output/{tier}/{patent_id}_editorial_review.md"
             if os.path.exists(editorial_file):
                 try:
                     with open(editorial_file, "r", encoding="utf-8") as f:
@@ -137,7 +137,7 @@ class PatentDocumentTool(BaseTool):
 
     def log_integration_decisions(self, patent_id: str, decisions: List[str]):
         """Log integration decisions for human review"""
-        log_file = f"patent_output/{patent_id}_integration_log.md"
+        log_file = f"output/{patent_id}_integration_log.md"
         try:
             with open(log_file, "w", encoding="utf-8") as f:
                 f.write(f"# Integration Log for Patent {patent_id}\n\n")

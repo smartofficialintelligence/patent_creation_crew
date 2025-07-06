@@ -63,7 +63,7 @@ class ArchitectureDiagramTool(BaseTool):
             )
             
             # Create output directory
-            output_dir = f"patent_output/{tier}/{patent_id}_diagrams"
+            output_dir = f"output/{tier}/{patent_id}_diagrams"
             os.makedirs(output_dir, exist_ok=True)
             
             # Save diagram package
