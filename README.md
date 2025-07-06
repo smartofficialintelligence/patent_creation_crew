@@ -57,8 +57,19 @@ method-patent/
 
 ## 🚀 Quick Start
 
-1. **Install dependencies**:
+1. **Install dependencies** (recommended method):
    ```bash
+   # Use the automated installation script
+   ./install_dependencies.sh
+   ```
+   
+   Or install manually:
+   ```bash
+   # Create and activate virtual environment
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install dependencies
    pip install -r requirements.txt
    ```
 
@@ -70,14 +81,18 @@ method-patent/
    export EPO_API_KEY="your-key"   # Optional
    ```
 
-3. **Check system status** (recommended):
+3. **Verify installation**:
    ```bash
-   python scripts/manage_context.py --status
+   # Test the installation
+   python run_patent_automation.py --help
+   
+   # Check system status
+   python scripts/monitor_status.py
    ```
 
-4. **Check incremental processing status**:
+4. **Run a test** (recommended):
    ```bash
-   python scripts/incremental_manager.py --status
+   python run_patent_automation.py --test
    ```
 
 5. **Run automation** (incremental by default):
@@ -86,6 +101,35 @@ method-patent/
    ```
 
 ## 🔧 Troubleshooting
+
+### Dependency Issues
+If you encounter missing module errors (like `ModuleNotFoundError: No module named 'psutil'`):
+
+1. **Reinstall dependencies**:
+   ```bash
+   # Activate virtual environment first
+   source venv/bin/activate
+   
+   # Reinstall all dependencies
+   pip install -r requirements.txt
+   ```
+
+2. **Install specific missing packages**:
+   ```bash
+   pip install psutil crewai openai langchain
+   ```
+
+3. **Use the installation script**:
+   ```bash
+   ./install_dependencies.sh
+   ```
+
+4. **Check virtual environment**:
+   ```bash
+   # Make sure you're in the virtual environment
+   which python
+   # Should show: /path/to/patent-pipeline/venv/bin/python
+   ```
 
 ### Context Size Issues
 If you encounter context length errors:
