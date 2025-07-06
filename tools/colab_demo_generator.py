@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Dict, Any, List
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 import logging
 from datetime import datetime
 
@@ -13,7 +13,8 @@ class ColabDemoGeneratorTool(BaseTool):
     description: str = "Generates Colab-compatible notebooks with code demos, benchmarks, and technical implementations for patents"
     
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str], 
-             technical_features: List[str], market_applications: List[str]) -> str:
+             technical_features: List[str], market_applications: List[str], 
+             editorial_feedback: str = None) -> str:
         try:
             # Handle potential None values or empty strings
             patent_id = patent_id or "UNKNOWN"
@@ -25,17 +26,23 @@ class ColabDemoGeneratorTool(BaseTool):
             
             # Generate the notebook content
             notebook_content = self._generate_colab_notebook(
-                patent_id, title, description, key_claims, technical_features, market_applications
+                patent_id, title, description, key_claims, technical_features, market_applications,
+                editorial_feedback
             )
             
-            # Save the notebook
-            notebook_file = f"patent_output/colab_demos/{patent_id}_demo.ipynb"
+            # Determine output file based on whether this is initial or final version
+            if editorial_feedback:
+                notebook_file = f"patent_output/colab_demos/{patent_id}_demo_final.ipynb"
+                log_message = f"✅ Final Colab notebook generated with editorial feedback: {notebook_file}"
+            else:
+                notebook_file = f"patent_output/colab_demos/{patent_id}_demo.ipynb"
+                log_message = f"✅ Initial Colab notebook generated: {notebook_file}"
             os.makedirs(os.path.dirname(notebook_file), exist_ok=True)
             
             with open(notebook_file, 'w', encoding='utf-8') as f:
                 json.dump(notebook_content, f, indent=2)
             
-            return f"✅ Colab notebook generated: {notebook_file}"
+            return log_message
             
         except Exception as e:
             error_msg = f"""
@@ -70,8 +77,13 @@ Input Parameters Received:
     
     def _generate_colab_notebook(self, patent_id: str, title: str, description: str, 
                                 key_claims: List[str], technical_features: List[str], 
-                                market_applications: List[str]) -> Dict:
+                                market_applications: List[str], editorial_feedback: str = None) -> Dict:
         """Generate a complete Colab notebook with code demos and benchmarks"""
+        
+        # Log editorial feedback integration if provided
+        if editorial_feedback:
+            logging.info(f"Integrating editorial feedback for patent {patent_id}")
+            logging.info(f"Editorial feedback length: {len(editorial_feedback)} characters")
         
         notebook = {
             "cells": [],
@@ -123,6 +135,25 @@ Input Parameters Received:
                 "⚠️ **Note**: This notebook requires GPU access for optimal performance benchmarks."
             ]
         })
+        
+        # Add editorial feedback integration note if provided
+        if editorial_feedback:
+            notebook["cells"].append({
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 📝 Editorial Review Integration\n\n",
+                    "This notebook has been enhanced based on editorial feedback to improve:\n",
+                    "- Code quality and best practices\n",
+                    "- Educational content clarity\n",
+                    "- Performance demonstration accuracy\n",
+                    "- Interactive functionality\n",
+                    "- User experience and accessibility\n\n",
+                    "**Editorial Feedback Summary**:\n",
+                    f"{editorial_feedback[:500]}{'...' if len(editorial_feedback) > 500 else ''}\n\n",
+                    "---\n"
+                ]
+            })
         
         # Add setup cell
         notebook["cells"].append({

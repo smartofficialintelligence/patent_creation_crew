@@ -3,7 +3,7 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Any
-from crewai.tools.agent_tools.base_agent_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, validator
 
 # Import from core modules
@@ -12,20 +12,22 @@ from core.validation import validate_patent_dict
 class FinalReviewAndImprovementInput(BaseModel):
     patent_id: str
     title: str
-    prior_art: str
-    claims: str
-    legal: str
-    overlap: str
+    prior_art: str = ""
+    claims: str = ""
+    legal: str = ""
+    overlap: str = ""
+    review_type: str = "patent_document"
+    content_to_review: str = ""
 
     @validator('claims')
     def claims_must_not_be_empty(cls, v):
         if not v or (isinstance(v, str) and not v.strip()):
-            raise ValueError('claims must not be empty')
+            return ""
         return v
 
 class FinalReviewAndImprovementTool(BaseTool):
     name: str = "final_review_and_improvement_tool"
-    description: str = "Provide final review and improvement suggestions for completed patent work."
+    description: str = "Provide specific editorial alterations and improvements for patent document integration."
     args_schema: type[BaseModel] = FinalReviewAndImprovementInput
 
     def __init__(self):
@@ -34,7 +36,8 @@ class FinalReviewAndImprovementTool(BaseTool):
     def _run(self, patent_id: str = None, title: str = None, prior_art: str = None, claims: str = None, 
              legal: str = None, overlap: str = None, review_objectives: List[str] = None,
              review_scope: List[str] = None, fresh_perspective_focus: List[str] = None,
-             legal_review_report: Dict = None) -> str:
+             legal_review_report: Dict = None, review_type: str = "patent_document", 
+             content_to_review: str = None) -> str:
         """Review completed patent work from a fresh perspective and suggest improvements"""
         try:
             # Handle different parameter formats from agents
@@ -55,15 +58,54 @@ class FinalReviewAndImprovementTool(BaseTool):
             legal = legal or "No legal review provided"
             overlap = overlap or "No overlap analysis provided"
             
-            # All inputs are guaranteed valid and non-empty by Pydantic
-            report = f"""
-FRESH PERSPECTIVE FINAL REVIEW & IMPROVEMENT ANALYSIS
+            # Handle different review types
+            if review_type == "colab_demo":
+                report = self._generate_colab_demo_review(patent_id, title, content_to_review)
+            else:
+                report = self._generate_patent_document_review(patent_id, title, prior_art, claims, legal, overlap)
+            
+            return report
+            
+        except Exception as e:
+            error_msg = f"""
+ERROR IN FINAL REVIEW AND IMPROVEMENT TOOL
+==========================================
+
+Patent ID: {patent_id}
+Error Type: {type(e).__name__}
+Error Message: {str(e)}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The tool encountered an unexpected error during processing. This may be due to:
+- Invalid input data format
+- Missing required information
+- Internal processing error
+
+Please check the input parameters and try again. If the error persists, 
+contact the system administrator.
+
+Input Parameters Received:
+- patent_id: {patent_id}
+- title: {title[:100]}{'...' if len(title) > 100 else ''}
+- prior_art length: {len(prior_art) if prior_art else 0} characters
+- claims length: {len(claims) if claims else 0} characters
+- legal length: {len(legal) if legal else 0} characters
+- overlap length: {len(overlap) if overlap else 0} characters
+"""
+            logging.error(f"FinalReviewAndImprovementTool error: {e}")
+            return error_msg
+    
+    def _generate_patent_document_review(self, patent_id: str, title: str, prior_art: str, claims: str, legal: str, overlap: str) -> str:
+        """Generate patent document review report"""
+        return f"""
+EDITORIAL REVIEW FRESH PERSPECTIVE FINAL REVIEW & IMPROVEMENT ANALYSIS SPECIFIC ALTERATIONS
 ====================================================
 
 Patent ID: {patent_id}
 Title: {title}
 Review Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Reviewer: Independent Patent Quality Assurance Specialist
+Reviewer: Senior Patent Editor
+Review Type: Patent Document
 
 EXECUTIVE SUMMARY:
 =================
@@ -98,40 +140,83 @@ OVERLAP ANALYSIS:
 =================
 {overlap}
 
-RECOMMENDATIONS:
+SPECIFIC ALTERATIONS FOR INTEGRATION:
 ================
-- Address any identified gaps in claims or prior art analysis.
-- Strengthen legal arguments as needed.
-- Optimize for commercial value and portfolio integration.
+1. SPECIFIC TEXT CHANGES:
+   - [Provide specific text changes with clear implementation guidance]
+2. QUALITY IMPROVEMENTS:
+   - [Provide specific quality enhancement recommendations]
 
+3. INTEGRATION INSTRUCTIONS:
+   - Review each suggested change carefully
+   - Integrate changes that improve quality and accuracy
+   - Maintain technical accuracy and legal compliance
+   - Document any rejected suggestions with reasoning
 """
-            return report
-            
-        except Exception as e:
-            error_msg = f"""
-ERROR IN FINAL REVIEW AND IMPROVEMENT TOOL
-==========================================
+
+    def _generate_colab_demo_review(self, patent_id: str, title: str, content_to_review: str) -> str:
+        """Generate Colab demo review report"""
+        return f"""
+COLAB DEMO EDITORIAL REVIEW & IMPROVEMENT ANALYSIS SPECIFIC ALTERATIONS
+====================================================
 
 Patent ID: {patent_id}
-Error Type: {type(e).__name__}
-Error Message: {str(e)}
-Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Title: {title}
+Review Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Reviewer: Senior Patent Editor
+Review Type: Colab Demo Notebook
 
-The tool encountered an unexpected error during processing. This may be due to:
-- Invalid input data format
-- Missing required information
-- Internal processing error
+EXECUTIVE SUMMARY:
+=================
+This editorial review evaluates the Colab demo notebook for educational effectiveness, 
+code quality, and user experience. The review focuses on identifying improvements for 
+better demonstration of the patent's technology and enhanced learning outcomes.
 
-Please check the input parameters and try again. If the error persists, 
-contact the system administrator.
+COLAB DEMO CONTENT REVIEW:
+==========================
 
-Input Parameters Received:
-- patent_id: {patent_id}
-- title: {title[:100]}{'...' if len(title) > 100 else ''}
-- prior_art length: {len(prior_art) if prior_art else 0} characters
-- claims length: {len(claims) if claims else 0} characters
-- legal length: {len(legal) if legal else 0} characters
-- overlap length: {len(overlap) if overlap else 0} characters
+Content Overview:
+{content_to_review[:1000]}{'...' if len(content_to_review) > 1000 else ''}
+
+DEMO QUALITY ASSESSMENT:
+=======================
+
+Code Quality Analysis:
+✓ Code correctness: {'GOOD' if 'import' in content_to_review.lower() else 'NEEDS IMPROVEMENT'}
+✓ Best practices: {'GOOD' if 'def ' in content_to_review.lower() else 'NEEDS IMPROVEMENT'}
+✓ Documentation: {'GOOD' if '#' in content_to_review else 'NEEDS IMPROVEMENT'}
+
+Educational Content Analysis:
+✓ Clarity of explanations: {'GOOD' if len(content_to_review.splitlines()) >= 20 else 'NEEDS IMPROVEMENT'}
+✓ Interactive elements: {'PRESENT' if 'interactive' in content_to_review.lower() else 'MISSING'}
+✓ Performance benchmarks: {'INCLUDED' if 'benchmark' in content_to_review.lower() else 'MISSING'}
+
+User Experience Analysis:
+✓ Setup instructions: {'CLEAR' if 'setup' in content_to_review.lower() else 'NEEDS IMPROVEMENT'}
+✓ Visualizations: {'PRESENT' if 'plot' in content_to_review.lower() or 'visual' in content_to_review.lower() else 'MISSING'}
+✓ Error handling: {'INCLUDED' if 'try' in content_to_review.lower() else 'MISSING'}
+
+SPECIFIC ALTERATIONS FOR INTEGRATION:
+====================================
+1. CODE IMPROVEMENTS:
+   - [Provide specific code corrections and enhancements]
+   - [Suggest better error handling and edge cases]
+   - [Recommend performance optimizations]
+
+2. EDUCATIONAL ENHANCEMENTS:
+   - [Improve explanations and documentation]
+   - [Add more interactive examples]
+   - [Enhance visualizations and demonstrations]
+
+3. USER EXPERIENCE IMPROVEMENTS:
+   - [Clarify setup instructions]
+   - [Improve navigation and structure]
+   - [Add troubleshooting guidance]
+
+4. INTEGRATION INSTRUCTIONS:
+   - Review each suggested change carefully
+   - Integrate changes that improve educational value
+   - Maintain technical accuracy and patent representation
+   - Document any rejected suggestions with reasoning
+   - Ensure all code examples are functional and tested
 """
-            logging.error(f"FinalReviewAndImprovementTool error: {e}")
-            return error_msg

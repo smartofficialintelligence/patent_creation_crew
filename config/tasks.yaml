@@ -24,12 +24,23 @@ prior_art_research:
     - Neural network optimization alternatives
     - AutoML and hyperparameter optimization
     - Explainable AI and interpretable optimization
+    - agentic gradient descent
     
     KEY CLAIMS TO ANALYZE:
     {claims_list}
     
     DELIVERABLE: Comprehensive prior art analysis with specific recommendations
     for claim refinement and prosecution strategy.
+    
+    TOOL PARAMETERS:
+    Use enhanced_prior_art_search_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - value_estimate: {value_estimate}
   expected_output: |
     Comprehensive prior art analysis including:
     - Real patent data from Lens Patents API
@@ -72,6 +83,17 @@ claims_refinement:
     MARKET APPLICATIONS: {market_applications}
     
     Use prior art analysis to inform claim refinement strategy.
+    
+    TOOL PARAMETERS:
+    Use smart_claim_refinement_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of original claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - value_target: {value_estimate}
+    - differentiation: {differentiation}
   expected_output: |
     Refined patent claims package including:
     - Independent claims with maximum defensible breadth
@@ -88,7 +110,7 @@ claims_refinement:
 
 patent_document:
   description: |
-    Create comprehensive provisional patent application:
+    Create comprehensive document which could be a provisional patent application:
     
     PATENT: {title} (ID: {id})
     TIER: {tier} ({tier_name})
@@ -118,6 +140,16 @@ patent_document:
     - Strategic claim positioning for portfolio value
     
     Incorporate refined claims and prior art analysis findings.
+    
+    TOOL PARAMETERS:
+    Use patent_document_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims from refined claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - differentiation: {differentiation}
   expected_output: |
     Complete provisional patent application including:
     - Title page with inventor and filing information
@@ -178,52 +210,95 @@ legal_review:
     - Final filing recommendation (PROCEED/MODIFY/DELAY)
   output_file: "patent_output/{tier}/{id}_legal_review.md"
   agent: legal_reviewer
-  context: [prior_art_research, claims_refinement, patent_document]
+  context: [prior_art_research, claims_refinement, patent_integration]
 
-final_review:
+editorial_review:
   description: |
-    Provide fresh perspective review and iterative improvement analysis:
+    Conduct final editorial review of patent document and provide specific alterations for integration: 
+    
+    PATENT: {title} (ID: {id}) 
+    
+    EDITORIAL OBJECTIVES: 
+    1. Review patent document for clarity, completeness, and quality 
+    2. Identify specific alterations and improvements needed 
+    3. Provide clear, actionable feedback for author integration 
+    4. Assess technical accuracy and legal compliance 
+    5. Suggest enhancements for commercial value and enforceability 
+    6. Ensure proper integration of refined claims 
+    
+    REVIEW SCOPE: 
+    - Patent document structure and formatting 
+    - Technical description clarity and completeness 
+    - Claims integration and quality 
+    - Prior art differentiation effectiveness 
+    - Commercial value proposition clarity 
+    - Legal compliance and USPTO requirements 
+    
+    EDITORIAL FOCUS: 
+    - Specific text alterations and improvements 
+    - Clear implementation guidance for changes 
+    - Quality enhancement recommendations 
+    - Technical accuracy verification 
+    - Commercial value optimization suggestions 
+    
+    Provide specific, actionable alterations that the patent writer can directly integrate.  expected_output: |
+    Editorial review report including: 
+    - Specific alterations and improvements for patent document 
+    - Clear implementation guidance for each change 
+    - Quality assessment and enhancement recommendations 
+    - Technical accuracy verification and corrections 
+    - Commercial value optimization suggestions 
+    - Legal compliance improvements 
+    - Integration instructions for patent writer  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
+  output_file: "patent_output/{tier}/{id}_editorial_review.md"
+  agent: editor
+
+patent_integration:
+  description: |
+    Review editorial feedback and integrate agreed-upon improvements into patent document:
     
     PATENT: {title} (ID: {id})
     
-    REVIEW OBJECTIVES:
-    1. Evaluate completed patent work from independent perspective
-    2. Identify quality gaps and improvement opportunities
-    3. Assess completeness of all patent components
-    4. Provide iterative improvement recommendations
-    5. Calculate quality scores and confidence levels
-    6. Suggest enhancement strategies for maximum value
+    INTEGRATION OBJECTIVES:
+    1. Review editorial feedback and alterations
+    2. Evaluate each suggested change for appropriateness
+    3. Integrate agreed-upon improvements into patent document
+    4. Maintain author intent while improving quality
+    5. Document integration decisions and reasoning
+    6. Ensure final document meets quality standards
     
-    REVIEW SCOPE:
-    - Original claims quality and completeness
-    - Prior art analysis integration and quality
-    - Claims refinement effectiveness
-    - Legal compliance and strategy assessment
-    - Term overlap analysis integration
-    - Overall patent quality and filing readiness
+    INTEGRATION PROCESS:
+    - Read editorial review feedback carefully
+    - Evaluate each suggested alteration
+    - Integrate changes that improve quality and accuracy
+    - Maintain technical accuracy and legal compliance
+    - Document any rejected suggestions with reasoning
+    - Ensure final document is complete and professional
     
-    FRESH PERSPECTIVE FOCUS:
-    - Identify overlooked opportunities
-    - Detect potential gaps or inconsistencies
-    - Suggest technical and strategic enhancements
-    - Assess commercial value optimization
-    - Evaluate risk mitigation completeness
+    INSTRUCTIONS: "Review this editorial review and integrate the feedback you agree with."
     
-    Use all available patent work to provide comprehensive quality assessment.
+    TOOL PARAMETERS:
+    Use patent_document_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims from refined claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - differentiation: {differentiation}
+    - editorial_feedback: [content from editorial review]
   expected_output: |
-    Independent quality assurance report including:
-    - Fresh perspective analysis of completed work
-    - Quality gap identification and improvement opportunities
-    - Cross-functional review assessment
-    - Risk assessment and mitigation recommendations
-    - Iterative refinement suggestions
-    - Quality scoring and confidence assessment
-    - Actionable improvement recommendations
-    - Overall patent value optimization strategy
-  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
-  output_file: "patent_output/{tier}/{id}_final_review.md"
-  agent: final_reviewer
-  context: [prior_art_research, claims_refinement, patent_document, legal_review]
+    Final integrated patent document including:
+    - All agreed-upon editorial improvements integrated
+    - Documentation of integration decisions
+    - Reasoning for any rejected suggestions
+    - Final quality assurance verification
+    - Complete, professional patent application
+    - Integration log for human review
+  output_pydantic: tools.patent_document.PatentDocumentInput
+  output_file: "patent_output/{tier}/{id}_patent_application_final.md"
+  agent: patent_writer
+  context: [prior_art_research, claims_refinement, patent_document, editorial_review]  context: [prior_art_research, claims_refinement, patent_document, legal_review]
 
 cover_sheet:
   description: |
@@ -267,7 +342,74 @@ cover_sheet:
   output_pydantic: tools.provisional_cover_sheet.ProvisionalCoverSheetInput
   output_file: "patent_output/{tier}/{id}_cover_sheet.md"
   agent: cover_sheet_specialist
-  context: [prior_art_research, claims_refinement, patent_document, legal_review, final_review]
+  context: [prior_art_research, claims_refinement, patent_document, legal_review, patent_integration, colab_demo_generation, colab_demo_editorial_review, colab_demo_integration]
+
+patent_valuation:
+  description: |
+    Conduct comprehensive patent valuation analysis:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    VALUATION REQUIREMENTS:
+    1. Dynamic patent value calculation based on multiple factors
+    2. Technical innovation assessment and scoring
+    3. Market size and application domain analysis
+    4. Competitive landscape and differentiation evaluation
+    5. Risk assessment (prior art, implementation, regulatory)
+    6. Commercial value and licensing potential analysis
+    7. Comparative analysis with industry benchmarks
+    8. Value optimization recommendations
+    
+    PATENT DATA:
+    - Description: {description}
+    - Technical Features: {technical_features}
+    - Market Applications: {market_applications}
+    - Key Claims: {claims_list}
+    - Differentiation: {differentiation}
+    
+    VALUATION FOCUS:
+    - Technical novelty and innovation factors
+    - Market size and growth potential
+    - Competitive positioning and barriers to entry
+    - Risk-adjusted value calculation
+    - Regulatory compliance advantages
+    - Licensing and commercialization potential
+    - Industry benchmark comparisons
+    
+    Provide comprehensive valuation with confidence intervals and recommendations.
+    
+    TOOL PARAMETERS:
+    Use patent_valuation_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - implementation_complexity: "Medium"
+    - prior_art_risk: "Medium"
+    - regulatory_compliance: ""
+    - prototype_metrics: ""
+    - differentiation: {differentiation}
+    - prior_art_analysis: ""
+    - academic_analysis: ""
+    - overlap_analysis: ""
+  expected_output: |
+    Comprehensive patent valuation report including:
+    - Dynamic value calculation with confidence intervals
+    - Technical innovation assessment and scoring
+    - Market factor analysis and application domain evaluation
+    - Risk assessment and mitigation analysis
+    - Competitive landscape and differentiation evaluation
+    - Commercial value and licensing potential analysis
+    - Comparative analysis with industry benchmarks
+    - Value optimization recommendations
+    - Filing strategy and priority recommendations
+  output_pydantic: tools.patent_valuation.PatentValuationInput
+  output_file: "patent_output/{tier}/{id}_valuation_report.md"
+  agent: valuation_expert
+  context: [prior_art_research, claims_refinement]
 
 colab_demo_generation:
   description: |
@@ -315,7 +457,115 @@ colab_demo_generation:
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
   output_file: "patent_output/{tier}/{id}_colab_demo.ipynb"
   agent: patent_writer
-  context: [prior_art_research, claims_refinement, patent_document]
+  context: [prior_art_research, claims_refinement, patent_integration]
+
+colab_demo_editorial_review:
+  description: |
+    Conduct editorial review of Colab demo notebook and provide specific alterations for improvement:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    REVIEW REQUIREMENTS:
+    1. Comprehensive review of Colab notebook quality and functionality
+    2. Code correctness and best practices assessment
+    3. Educational content clarity and effectiveness
+    4. Performance benchmark accuracy and relevance
+    5. Interactive elements and visualization quality
+    6. Setup instructions completeness and clarity
+    7. Patent technology demonstration accuracy
+    8. User experience and accessibility evaluation
+    
+    REVIEW FOCUS:
+    - Technical accuracy of code implementations
+    - Educational value and learning outcomes
+    - Performance demonstration effectiveness
+    - Code quality and best practices
+    - Visual presentation and user experience
+    - Patent technology representation accuracy
+    - Interactive functionality and engagement
+    - Documentation and setup clarity
+    
+    Provide specific alterations and clear instructions for improvement.
+    
+    TOOL PARAMETERS:
+    Use final_review_and_improvement_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - differentiation: {differentiation}
+    - review_type: "colab_demo"
+    - content_to_review: [content from colab demo generation]
+  expected_output: |
+    Editorial review report for Colab demo including:
+    - Specific code improvements and corrections
+    - Educational content enhancements
+    - Performance benchmark refinements
+    - Interactive element improvements
+    - Setup instruction clarifications
+    - Patent technology demonstration refinements
+    - User experience optimizations
+    - Clear integration instructions for improvements
+  output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
+  output_file: "patent_output/{tier}/{id}_colab_demo_editorial_review.md"
+  agent: editor
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation]
+
+colab_demo_integration:
+  description: |
+    Integrate editorial feedback into the Colab demo notebook:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    INTEGRATION REQUIREMENTS:
+    1. Review editorial feedback and integrate agreed-upon improvements
+    2. Update code implementations based on feedback
+    3. Enhance educational content and explanations
+    4. Improve performance benchmarks and visualizations
+    5. Refine interactive elements and user experience
+    6. Update setup instructions and documentation
+    7. Ensure patent technology is accurately demonstrated
+    8. Document integration decisions and reasoning
+    
+    INTEGRATION FOCUS:
+    - Code quality improvements and corrections
+    - Educational content enhancements
+    - Performance demonstration refinements
+    - Interactive functionality improvements
+    - Documentation and setup clarifications
+    - Patent technology representation accuracy
+    - User experience optimizations
+    
+    INSTRUCTIONS: "Review this editorial review and integrate the feedback you agree with."
+    
+    TOOL PARAMETERS:
+    Use colab_demo_generator_tool with these exact parameters:
+    - patent_id: {id}
+    - title: {title}
+    - description: {description}
+    - key_claims: [list of claims from refined claims]
+    - technical_features: {technical_features}
+    - market_applications: {market_applications}
+    - differentiation: {differentiation}
+    - editorial_feedback: [content from colab demo editorial review]
+  expected_output: |
+    Final integrated Colab demo notebook including:
+    - All agreed-upon editorial improvements integrated
+    - Enhanced code implementations and best practices
+    - Improved educational content and explanations
+    - Refined performance benchmarks and visualizations
+    - Optimized interactive elements and user experience
+    - Updated setup instructions and documentation
+    - Accurate patent technology demonstration
+    - Integration log for human review
+  output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
+  output_file: "patent_output/{tier}/{id}_colab_demo_final.ipynb"
+  agent: patent_writer
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, colab_demo_editorial_review]
 
 # Task generation configuration
 task_generation:
