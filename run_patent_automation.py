@@ -168,6 +168,11 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = PatentValuationTool()
                 tools.append(wrap_tool_with_parameter_correction('patent_valuation_tool', tool_instance))
+            elif tool_name == 'colab_demo_generator_tool':
+                from tools.colab_demo_generator import ColabDemoGeneratorTool
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ColabDemoGeneratorTool()
+                tools.append(wrap_tool_with_parameter_correction('colab_demo_generator_tool', tool_instance))
         # Create agent
         agent = Agent(
             role=agent_config['role'],
