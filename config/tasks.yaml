@@ -512,20 +512,25 @@ patent_valuation:
 
 colab_demo_generation:
   description: |
-    Generate interactive Google Colab demo notebook for patent demonstration:
+    Generate interactive Google Colab demo notebook as patent demonstration component:
     
     PATENT: {title} (ID: {id})
     TIER: {tier} ({tier_name})
     
+    PATENT DEMONSTRATION CONTEXT:
+    This Colab notebook serves as a critical component of the patent submission package, 
+    designed to demonstrate the patent's core technology, provide evidence of enablement, 
+    and showcase the invention's novelty and non-obviousness to patent examiners and stakeholders.
+    
     DEMO REQUIREMENTS:
-    1. Interactive Google Colab notebook format
-    2. Clear demonstration of patent's core technology
-    3. Working code examples and implementations
-    4. Educational content explaining the innovation
-    5. Performance benchmarks and comparisons
-    6. Visualizations and interactive elements
-    7. Installation and setup instructions
-    8. Usage examples and best practices
+    1. Interactive Google Colab notebook format suitable for patent submission
+    2. Clear demonstration of patent's core technology and claims
+    3. Working code examples that implement the claimed invention
+    4. Evidence of enablement for skilled artisan reproduction
+    5. Performance benchmarks validating patent advantages
+    6. Comparative analysis showing differentiation from prior art
+    7. Visual demonstrations of key technical concepts
+    8. Professional documentation for patent examiner review
     
     PATENT DATA:
     - Description: {description}
@@ -534,25 +539,27 @@ colab_demo_generation:
     - Key Claims: {claims_list}
     - Differentiation: {differentiation}
     
-    DEMO FOCUS:
-    - Core algorithm implementation
-    - Performance demonstrations
-    - Real-world use case examples
-    - Comparison with existing solutions
-    - Technical advantages visualization
-    - Interactive experimentation capabilities
+    PATENT DEMONSTRATION FOCUS:
+    - Implementation of core patent claims and technical features
+    - Performance validation of claimed advantages
+    - Enablement evidence for skilled artisan reproduction
+    - Prior art differentiation and novelty demonstration
+    - Real-world applicability and use case validation
+    - Professional presentation for patent submission
+    - Clear technical disclosure supporting patent scope
     
-    Create an engaging, educational demo that showcases the patent's value.
+    Create a comprehensive patent demonstration notebook that effectively supports 
+    the patent claims and provides compelling evidence of the invention's value and novelty.
   expected_output: |
-    Interactive Google Colab notebook including:
-    - Complete setup and installation instructions
-    - Core algorithm implementation and demonstration
-    - Performance benchmarks and comparisons
-    - Interactive visualizations and examples
-    - Real-world use case demonstrations
-    - Educational content explaining the innovation
-    - Code examples and best practices
-    - Technical advantages and differentiators
+    Patent demonstration Colab notebook including:
+    - Professional setup and enablement instructions for skilled artisans
+    - Complete implementation of core patent claims and technical features
+    - Performance benchmarks validating patent advantages over prior art
+    - Comparative analysis demonstrating novelty and non-obviousness
+    - Visual demonstrations of key technical concepts and innovations
+    - Real-world use case validation and applicability evidence
+    - Clear technical disclosure supporting patent scope and claims
+    - Professional documentation suitable for patent examiner review
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
   output_file: "patent_output/{tier}/{id}_colab_demo.ipynb"
   agent: patent_writer
@@ -560,32 +567,38 @@ colab_demo_generation:
 
 colab_demo_editorial_review:
   description: |
-    Conduct editorial review of Colab demo notebook and provide specific alterations for improvement:
+    Conduct editorial review of Colab demo notebook as patent demonstration component:
     
     PATENT: {title} (ID: {id})
     TIER: {tier} ({tier_name})
     
+    PATENT DEMONSTRATION CONTEXT:
+    This Colab notebook serves as a critical component of the patent submission package, 
+    designed to demonstrate the patent's core technology, provide evidence of enablement, 
+    and showcase the invention's novelty and non-obviousness to patent examiners and stakeholders.
+    
     REVIEW REQUIREMENTS:
-    1. Comprehensive review of Colab notebook quality and functionality
-    2. Code correctness and best practices assessment
-    3. Educational content clarity and effectiveness
-    4. Performance benchmark accuracy and relevance
-    5. Interactive elements and visualization quality
-    6. Setup instructions completeness and clarity
-    7. Patent technology demonstration accuracy
-    8. User experience and accessibility evaluation
+    1. Comprehensive review of patent demonstration effectiveness and enablement evidence
+    2. Assessment of claim support and technical feature implementation
+    3. Validation of performance benchmarks and patent advantages
+    4. Evaluation of prior art differentiation and novelty demonstration
+    5. Review of enablement clarity for skilled artisan reproduction
+    6. Assessment of professional presentation for patent submission
+    7. Verification of technical disclosure supporting patent scope
+    8. Evaluation of comparative analysis and real-world applicability
     
-    REVIEW FOCUS:
-    - Technical accuracy of code implementations
-    - Educational value and learning outcomes
-    - Performance demonstration effectiveness
-    - Code quality and best practices
-    - Visual presentation and user experience
-    - Patent technology representation accuracy
-    - Interactive functionality and engagement
-    - Documentation and setup clarity
+    PATENT DEMONSTRATION REVIEW FOCUS:
+    - Effectiveness in supporting and demonstrating patent claims
+    - Completeness of enablement evidence for skilled artisan reproduction
+    - Accuracy of performance validation and patent advantage demonstration
+    - Clarity of prior art differentiation and novelty evidence
+    - Professional quality suitable for patent examiner review
+    - Technical disclosure adequacy supporting patent scope
+    - Comparative analysis effectiveness showing invention advantages
+    - Real-world applicability and use case validation
     
-    Provide specific alterations and clear instructions for improvement.
+    Provide specific alterations that strengthen the notebook's effectiveness 
+    as a patent demonstration component and submission evidence.
     
     TOOL PARAMETERS:
     Use final_review_and_improvement_tool with these exact parameters:
@@ -599,15 +612,16 @@ colab_demo_editorial_review:
     - review_type: "colab_demo"
     - content_to_review: [content from colab demo generation]
   expected_output: |
-    Editorial review report for Colab demo including:
-    - Specific code improvements and corrections
-    - Educational content enhancements
-    - Performance benchmark refinements
-    - Interactive element improvements
-    - Setup instruction clarifications
-    - Patent technology demonstration refinements
-    - User experience optimizations
-    - Clear integration instructions for improvements
+    Patent demonstration editorial review report including:
+    - Claim support enhancements and patent claim demonstration improvements
+    - Enablement evidence strengthening and skilled artisan guidance refinements
+    - Performance validation improvements and patent advantage clarifications
+    - Prior art differentiation enhancements and novelty demonstration refinements
+    - Professional presentation improvements for patent submission
+    - Technical disclosure adequacy enhancements supporting patent scope
+    - Comparative analysis improvements showing invention advantages
+    - Real-world applicability validation and use case refinements
+    - Clear integration instructions for patent demonstration improvements
   output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
   output_file: "patent_output/{tier}/{id}_colab_demo_editorial_review.md"
   agent: editor
