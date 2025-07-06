@@ -398,7 +398,15 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             total_tasks += len(patent_ideas) * 10  # Approximate tasks per patent
     
     # Initialize resource monitoring and progress tracking
-    initialize_monitoring(total_patents, total_tasks)
+    try:
+        initialize_monitoring(total_patents, total_tasks)
+        logger.info("✅ Resource monitoring and progress tracking initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize monitoring: {e}")
+        logger.warning("⚠️ Continuing without resource monitoring - progress tracking will be limited")
+        # Set up a minimal progress tracker to prevent None errors
+        from core.resource_manager import ProgressTracker
+        progress_tracker = ProgressTracker(total_patents, total_tasks)
     
     # Process each tier
     processing_results = {}
@@ -457,7 +465,8 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 total_patents_processed += len(patent_ideas)
                 # Mark patents as completed for progress tracking
                 for patent in patent_ideas:
-                    progress_tracker.complete_patent(patent['id'])
+                    if progress_tracker:
+                        progress_tracker.complete_patent(patent['id'])
                 continue
             
             # Create crew with agents and tasks
@@ -472,7 +481,8 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             
             # Track progress for each patent in this tier
             for patent in patent_ideas:
-                progress_tracker.start_task("tier_processing", patent['id'])
+                if progress_tracker:
+                    progress_tracker.start_task("tier_processing", patent['id'])
             
             # Run the crew with error handling
             try:
@@ -480,8 +490,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 
                 # Mark all patents in this tier as completed
                 for patent in patent_ideas:
-                    progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                    progress_tracker.complete_patent(patent['id'])
+                    if progress_tracker:
+                        progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                        progress_tracker.complete_patent(patent['id'])
                 
                 logger.info(f"✅ Successfully processed {tier_info['name']}")
                 processing_results[tier_key] = {
@@ -499,8 +510,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     try:
                         result = crew.kickoff()
                         for patent in patent_ideas:
-                            progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                            progress_tracker.complete_patent(patent['id'])
+                            if progress_tracker:
+                                progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                                progress_tracker.complete_patent(patent['id'])
                         
                         logger.info(f"✅ Successfully processed {tier_info['name']} on retry")
                         processing_results[tier_key] = {
@@ -513,7 +525,8 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     except Exception as retry_error:
                         logger.error(f"❌ Crew execution failed on retry for {tier_info['name']}: {retry_error}")
                         for patent in patent_ideas:
-                            progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                            if progress_tracker:
+                                progress_tracker.complete_task("tier_processing", patent['id'], success=False)
                         processing_results[tier_key] = {
                             'success': False,
                             'error': str(retry_error),
@@ -522,7 +535,8 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 else:
                     logger.error(f"❌ Crew execution failed for {tier_info['name']}: {e}")
                     for patent in patent_ideas:
-                        progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                        if progress_tracker:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=False)
                     processing_results[tier_key] = {
                         'success': False,
                         'error': str(e),
@@ -615,18 +629,27 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             logger.warning("⚠️ No valuation data found in outputs")
     
     # Clean up monitoring and show final status
-    cleanup_monitoring()
+    try:
+        cleanup_monitoring()
+    except Exception as e:
+        logger.warning(f"⚠️ Error during monitoring cleanup: {e}")
     
     # Show final status report
-    status_report = get_status_report()
-    logger.info("=" * 80)
-    logger.info("📊 FINAL STATUS REPORT")
-    logger.info("=" * 80)
-    logger.info(f"Resource Usage: Memory {status_report['resource_status'].get('peak_memory_gb', 0):.1f}GB, CPU {status_report['resource_status'].get('peak_cpu_percent', 0):.1f}%")
-    logger.info(f"Processing Time: {status_report['progress_summary'].get('total_time_minutes', 0):.1f} minutes")
-    logger.info(f"Success Rate: {status_report['progress_summary'].get('patent_success_rate', 0):.1f}% patents, {status_report['progress_summary'].get('task_success_rate', 0):.1f}% tasks")
-    if status_report['error_summary']:
-        logger.info(f"Errors Encountered: {len(status_report['error_summary'])} different error types")
+    try:
+        status_report = get_status_report()
+        logger.info("=" * 80)
+        logger.info("📊 FINAL STATUS REPORT")
+        logger.info("=" * 80)
+        logger.info(f"Resource Usage: Memory {status_report['resource_status'].get('peak_memory_gb', 0):.1f}GB, CPU {status_report['resource_status'].get('peak_cpu_percent', 0):.1f}%")
+        logger.info(f"Processing Time: {status_report['progress_summary'].get('total_time_minutes', 0):.1f} minutes")
+        logger.info(f"Success Rate: {status_report['progress_summary'].get('patent_success_rate', 0):.1f}% patents, {status_report['progress_summary'].get('task_success_rate', 0):.1f}% tasks")
+        if status_report['error_summary']:
+            logger.info(f"Errors Encountered: {len(status_report['error_summary'])} different error types")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not generate status report: {e}")
+        logger.info("📊 Basic processing summary:")
+        logger.info(f"📈 Total Patents Processed: {total_patents}")
+        logger.info(f"🎯 Successful Tiers: {successful_tiers}/{len(processing_results)}")
     
     return successful_tiers > 0
 
