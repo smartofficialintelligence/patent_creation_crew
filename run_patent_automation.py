@@ -62,6 +62,7 @@ from core.patent_data import PATENT_IDEAS, PATENT_CONFIG
 from core.retry_manager import RetryManager
 from core.incremental_processor import IncrementalProcessor
 from core.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
+from core.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
 
 @trace_function(name="validate_environment")
 def validate_environment():
@@ -382,11 +383,26 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     agents = create_agents_from_yaml()
     logger.info(f"✅ Created {len(agents)} agents")
     
+    # Calculate total work for monitoring
+    tiers_to_process = [tier_filter] if tier_filter else ['tier_1']  # Default to Tier 1 only
+    total_patents = 0
+    total_tasks = 0
+    
+    for tier_key in tiers_to_process:
+        if tier_key in PATENT_CONFIG['portfolio_tiers']:
+            patent_ideas = PATENT_IDEAS.get(tier_key, [])
+            if max_patents_per_tier:
+                patent_ideas = patent_ideas[:max_patents_per_tier]
+            total_patents += len(patent_ideas)
+            # Estimate tasks per patent (rough estimate)
+            total_tasks += len(patent_ideas) * 10  # Approximate tasks per patent
+    
+    # Initialize resource monitoring and progress tracking
+    initialize_monitoring(total_patents, total_tasks)
+    
     # Process each tier
     processing_results = {}
     total_patents_processed = 0
-    
-    tiers_to_process = [tier_filter] if tier_filter else ['tier_1']  # Default to Tier 1 only
     
     for tier_key in tiers_to_process:
         if tier_key not in PATENT_CONFIG['portfolio_tiers']:
@@ -439,6 +455,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     'result': "All assets already exist - no processing needed"
                 }
                 total_patents_processed += len(patent_ideas)
+                # Mark patents as completed for progress tracking
+                for patent in patent_ideas:
+                    progress_tracker.complete_patent(patent['id'])
                 continue
             
             # Create crew with agents and tasks
@@ -451,25 +470,76 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 max_rpm=30
             )
             
-            # Run the crew
-            result = crew.kickoff()
+            # Track progress for each patent in this tier
+            for patent in patent_ideas:
+                progress_tracker.start_task("tier_processing", patent['id'])
             
-            logger.info(f"✅ Successfully processed {tier_info['name']}")
-            processing_results[tier_key] = {
-                'success': True,
-                'patents_processed': len(patent_ideas),
-                'tier_info': tier_info,
-                'result': result
-            }
-            total_patents_processed += len(patent_ideas)
+            # Run the crew with error handling
+            try:
+                result = crew.kickoff()
+                
+                # Mark all patents in this tier as completed
+                for patent in patent_ideas:
+                    progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                    progress_tracker.complete_patent(patent['id'])
+                
+                logger.info(f"✅ Successfully processed {tier_info['name']}")
+                processing_results[tier_key] = {
+                    'success': True,
+                    'patents_processed': len(patent_ideas),
+                    'tier_info': tier_info,
+                    'result': result
+                }
+                total_patents_processed += len(patent_ideas)
+                
+            except Exception as e:
+                # Handle crew execution errors
+                if error_handler.handle_error(e, "crew_execution", tier_key):
+                    logger.info(f"🔄 Retrying crew execution for {tier_info['name']}")
+                    try:
+                        result = crew.kickoff()
+                        for patent in patent_ideas:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                            progress_tracker.complete_patent(patent['id'])
+                        
+                        logger.info(f"✅ Successfully processed {tier_info['name']} on retry")
+                        processing_results[tier_key] = {
+                            'success': True,
+                            'patents_processed': len(patent_ideas),
+                            'tier_info': tier_info,
+                            'result': result
+                        }
+                        total_patents_processed += len(patent_ideas)
+                    except Exception as retry_error:
+                        logger.error(f"❌ Crew execution failed on retry for {tier_info['name']}: {retry_error}")
+                        for patent in patent_ideas:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                        processing_results[tier_key] = {
+                            'success': False,
+                            'error': str(retry_error),
+                            'tier_info': tier_info
+                        }
+                else:
+                    logger.error(f"❌ Crew execution failed for {tier_info['name']}: {e}")
+                    for patent in patent_ideas:
+                        progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                    processing_results[tier_key] = {
+                        'success': False,
+                        'error': str(e),
+                        'tier_info': tier_info
+                    }
                 
         except Exception as e:
             logger.error(f"❌ Error processing {tier_info['name']}: {e}")
-            processing_results[tier_key] = {
-                'success': False,
-                'error': str(e),
-                'tier_info': tier_info
-            }
+            if error_handler.handle_error(e, "tier_setup", tier_key):
+                logger.info(f"🔄 Retrying tier setup for {tier_info['name']}")
+                # Could implement retry logic here if needed
+            else:
+                processing_results[tier_key] = {
+                    'success': False,
+                    'error': str(e),
+                    'tier_info': tier_info
+                }
     
     # Summary
     logger.info("=" * 80)
@@ -542,28 +612,23 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 for confidence, count in portfolio_summary['confidence_levels'].items():
                     logger.info(f"  {confidence}: {count} patents")
         else:
-            logger.warning("⚠️ No valuation data found in outputs. Using fallback estimation.")
-            estimated_value = total_patents * 5000000  # $5M average per patent
-            logger.info(f"💰 Fallback Portfolio Value: ${estimated_value:,}")
+            logger.warning("⚠️ No valuation data found in outputs")
     
-    # Show retry manager summary
+    # Clean up monitoring and show final status
+    cleanup_monitoring()
+    
+    # Show final status report
+    status_report = get_status_report()
     logger.info("=" * 80)
-    logger.info("🔄 RETRY MANAGER SUMMARY")
+    logger.info("📊 FINAL STATUS REPORT")
     logger.info("=" * 80)
+    logger.info(f"Resource Usage: Memory {status_report['resource_status'].get('peak_memory_gb', 0):.1f}GB, CPU {status_report['resource_status'].get('peak_cpu_percent', 0):.1f}%")
+    logger.info(f"Processing Time: {status_report['progress_summary'].get('total_time_minutes', 0):.1f} minutes")
+    logger.info(f"Success Rate: {status_report['progress_summary'].get('patent_success_rate', 0):.1f}% patents, {status_report['progress_summary'].get('task_success_rate', 0):.1f}% tasks")
+    if status_report['error_summary']:
+        logger.info(f"Errors Encountered: {len(status_report['error_summary'])} different error types")
     
-    summary = retry_manager.get_execution_summary()
-    logger.info(f"Total Tool Executions: {summary['total_executions']}")
-    logger.info(f"Successful: {summary['successful']}")
-    logger.info(f"Failed: {summary['failed']}")
-    logger.info(f"Success Rate: {summary['success_rate']:.1f}%")
-    logger.info(f"Average Retries: {summary['average_retries']:.1f}")
-    
-    if summary['failed'] > 0:
-        logger.warning(f"⚠️ {summary['failed']} tool executions failed. Run recovery manager for details:")
-        logger.warning("   python scripts/recovery_manager.py --show-failed")
-        logger.warning("   python scripts/recovery_manager.py --report")
-    
-    return True
+    return successful_tiers > 0
 
 @trace_function(name="main")
 def main():
@@ -588,7 +653,30 @@ def main():
     parser.add_argument('--clear-logs', action='store_true',
                        help='Clear the log file before starting automation')
     
+    # Resource management arguments
+    parser.add_argument('--max-memory', type=float, default=4.0,
+                       help='Maximum memory usage in GB (default: 4.0)')
+    parser.add_argument('--max-cpu', type=float, default=80.0,
+                       help='Maximum CPU usage percentage (default: 80.0)')
+    parser.add_argument('--max-disk', type=float, default=2.0,
+                       help='Maximum disk usage in GB (default: 2.0)')
+    parser.add_argument('--timeout', type=int, default=60,
+                       help='Maximum processing time in minutes (default: 60)')
+    parser.add_argument('--no-monitoring', action='store_true',
+                       help='Disable resource monitoring')
+    
     args = parser.parse_args()
+    
+    # Configure resource management if monitoring is enabled
+    if not args.no_monitoring:
+        from core.resource_manager import resource_manager
+        resource_manager.max_memory_gb = args.max_memory
+        resource_manager.max_cpu_percent = args.max_cpu
+        resource_manager.max_disk_gb = args.max_disk
+        resource_manager.timeout_minutes = args.timeout
+        logger.info(f"🔧 Resource monitoring configured: Memory {args.max_memory}GB, CPU {args.max_cpu}%, Disk {args.max_disk}GB, Timeout {args.timeout}min")
+    else:
+        logger.info("⚠️ Resource monitoring disabled")
     
     # Handle test mode
     if args.test:

@@ -192,6 +192,79 @@ The system now includes comprehensive retry and recovery mechanisms:
 - **Recovery reports**: Comprehensive reports on failures and recommendations
 - **Selective reset**: Reset specific failed executions for targeted recovery
 
+## 🔍 Resource Management & Monitoring
+
+The system now includes comprehensive resource management and monitoring for local laptop use:
+
+### Resource Monitoring
+- **Memory tracking**: Monitors RAM usage with configurable limits (default: 4GB)
+- **CPU monitoring**: Tracks CPU usage with percentage limits (default: 80%)
+- **Disk usage**: Monitors output directory size (default: 2GB limit)
+- **Time limits**: Configurable processing timeout (default: 60 minutes)
+- **Real-time alerts**: Warns when resource limits are approached
+
+### Progress Tracking
+- **Patent completion**: Tracks completed vs. total patents
+- **Task progress**: Monitors individual task completion rates
+- **Time estimation**: Provides estimated remaining processing time
+- **Success rates**: Calculates success rates for patents and tasks
+- **Performance metrics**: Average task duration and throughput
+
+### Error Handling
+- **Automatic retries**: Retries failed operations with exponential backoff
+- **Error categorization**: Groups errors by type and context
+- **Recovery actions**: Configurable recovery procedures for different error types
+- **Failure summaries**: Comprehensive reports on what failed and why
+
+### Usage Examples
+
+1. **Run with default resource limits**:
+   ```bash
+   python run_patent_automation.py
+   ```
+
+2. **Configure resource limits**:
+   ```bash
+   python run_patent_automation.py --max-memory 8.0 --max-cpu 90 --timeout 120
+   ```
+
+3. **Disable monitoring**:
+   ```bash
+   python run_patent_automation.py --no-monitoring
+   ```
+
+4. **Check current status** (during or after processing):
+   ```bash
+   python scripts/monitor_status.py
+   ```
+
+5. **Monitor with custom limits for large runs**:
+   ```bash
+   python run_patent_automation.py --max-memory 16.0 --max-cpu 95 --timeout 180 --max-disk 5.0
+   ```
+
+### Resource Management Features
+- **Configurable limits**: All resource limits can be adjusted via command line
+- **Background monitoring**: Resource monitoring runs in background thread
+- **Graceful degradation**: System continues processing even if some limits are exceeded
+- **Status reporting**: Comprehensive status reports with resource usage and progress
+- **Log integration**: All monitoring data is integrated with main logging system
+
+### Monitoring Output
+The system provides real-time monitoring output including:
+- Resource usage percentages and peak values
+- Progress updates with completion percentages
+- Estimated time remaining
+- Error counts and types
+- Performance metrics and averages
+
+### Best Practices
+- **Start conservative**: Begin with default limits and adjust based on your system
+- **Monitor during first run**: Use `python scripts/monitor_status.py` to check resource usage
+- **Adjust for your hardware**: Increase limits for high-end systems, decrease for older laptops
+- **Consider background processes**: Account for other applications when setting limits
+- **Use timeout protection**: Set reasonable timeouts to prevent runaway processes
+
 ## 📊 Patent Portfolio
 
 - **Total**: 37 patents (as defined in patent_list.md)
