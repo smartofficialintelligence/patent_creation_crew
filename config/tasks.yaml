@@ -289,7 +289,7 @@ legal_review:
     - Final filing recommendation (PROCEED/MODIFY/DELAY)
   output_file: "output/{tier}/{id}_legal_review.md"
   agent: legal_reviewer
-  context: [prior_art_research, claims_refinement, patent_integration]
+  context: [prior_art_research, claims_refinement, patent_document]
 
 associate_editor_review:
   description: |
@@ -576,7 +576,7 @@ patent_valuation:
   output_pydantic: tools.patent_valuation.PatentValuationInput
   output_file: "output/{tier}/{id}_valuation_report.md"
   agent: valuation_expert
-  context: [prior_art_research, claims_refinement]
+  context: [prior_art_research, claims_refinement, legal_review, patent_integration]
 
 colab_demo_concept_review:
   description: |
@@ -623,6 +623,7 @@ colab_demo_concept_review:
   expected_output: "Comprehensive strategic concept review with prioritized recommendations for demo implementation approach, claim focus, and technical strategy"
   agent: demo_concept_reviewer
   output_file: "output/{tier}/{id}_colab_demo_concept_review.md"
+  context: [prior_art_research, claims_refinement, patent_integration]
 
 colab_demo_generation:
   description: |
@@ -677,7 +678,7 @@ colab_demo_generation:
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
   output_file: "output/{tier}/{id}_colab_demo_log.md"
   agent: patent_writer
-  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_concept_review]
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_concept_review, legal_review, architecture_diagram]
 
 colab_demo_editorial_review:
   description: |
@@ -728,7 +729,7 @@ colab_demo_editorial_review:
   output_pydantic: tools.final_review_and_improvement.FinalReviewAndImprovementInput
   output_file: "output/{tier}/{id}_colab_demo_editorial_review.md"
   agent: editor
-  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation]
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, legal_review]
 
 colab_demo_integration:
   description: |
@@ -788,7 +789,7 @@ colab_demo_integration:
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
   output_file: "output/{tier}/{id}_colab_demo_integration_log.md"
   agent: patent_writer
-  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, colab_demo_editorial_review]
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, colab_demo_editorial_review, legal_review]
 
 # Task generation configuration
 task_generation:
