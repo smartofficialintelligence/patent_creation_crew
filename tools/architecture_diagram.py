@@ -428,7 +428,9 @@ elements to emphasize differences from prior art.
                 dot.node('A', 'Component A')
                 dot.node('B', 'Component B')
                 dot.edge('A', 'B', label='Data Flow')
-                dot.render(prog_path, format='png', cleanup=True)
+                # Remove .png extension as render() adds it automatically
+                prog_path_no_ext = prog_path.replace('.png', '')
+                dot.render(prog_path_no_ext, format='png', cleanup=True)
             elif dtype == 'agent_coordination':
                 G = nx.Graph()
                 G.add_node('Coordinator')
