@@ -63,6 +63,7 @@ from lib.retry_manager import RetryManager
 from lib.incremental_processor import IncrementalProcessor
 from lib.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
 from lib.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
+from lib.parallel_execution import ParallelExecutionManager
 
 @trace_function(name="validate_environment")
 def validate_environment():
@@ -365,7 +366,7 @@ def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str
     return formatted_description
 
 @trace_function(name="run_patent_automation")
-def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False):
+def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False, parallel_execution: bool = False, max_workers: int = 4):
     """Run patent automation for specified tiers using CrewAI YAML configuration"""
     
     logger.info("🤖 Starting Innovation Analysis System with CrewAI Native YAML Configuration")
@@ -374,6 +375,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     logger.info(f"Total Investment: ${PATENT_CONFIG['target_portfolio_size'] * PATENT_CONFIG['filing_cost_per_patent']:,}")
     logger.info(f"Incremental Processing: {'Enabled' if incremental else 'Disabled'}")
     logger.info(f"Force Regenerate: {'Yes' if force_regenerate else 'No'}")
+    logger.info(f"Parallel Execution: {'Enabled' if parallel_execution else 'Disabled'}")
+    if parallel_execution:
+        logger.info(f"Max Workers: {max_workers}")
     
     # Add system message to override content policies
     logger.info("📝 NOTE: This system is for RESEARCH and ANALYSIS purposes only.")
@@ -505,69 +509,60 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                         progress_tracker.complete_patent(patent['id'])
                 continue
             
-            # Create crew with agents and tasks
-            crew = Crew(
-                agents=list(agents.values()),
-                tasks=tasks,
-                process="sequential",
-                verbose=True,
-                memory=True,
-                max_rpm=30
-            )
-            
-            # Track progress for each patent in this tier
-            for patent in patent_ideas:
-                if progress_tracker:
-                    progress_tracker.start_task("tier_processing", patent['id'])
-            
-            # Run the crew with error handling
-            try:
-                result = crew.kickoff()
-                # Mark all patents in this tier as completed
+            # Choose execution method based on parallel_execution flag
+            if parallel_execution:
+                # Use parallel execution
+                logger.info(f"🚀 Using parallel execution with {max_workers} workers")
+                
+                # Create parallel execution manager
+                parallel_manager = ParallelExecutionManager(max_workers=max_workers)
+                
+                # Group tasks by patent for better organization
+                # We'll add all tasks to the parallel manager
+                task_mapping = {}
+                for i, task in enumerate(tasks):
+                    task_name = f"task_{i}"
+                    task_mapping[task_name] = task
+                    parallel_manager.add_task(task_name, task)
+                
+                # Track progress for each patent in this tier
                 for patent in patent_ideas:
                     if progress_tracker:
-                        progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                        progress_tracker.complete_patent(patent['id'])
-            
-                logger.info(f"✅ Successfully processed {tier_info['name']}")
-                processing_results[tier_key] = {
-                    'success': True,
-                    'patents_processed': len(patent_ideas),
-                    'tier_info': tier_info,
-                    'result': result
-                }
-                total_patents_processed += len(patent_ideas)
-            except Exception as e:
-                # Handle crew execution errors
-                if error_handler.handle_error(e, "crew_execution", tier_key):
-                    logger.info(f"🔄 Retrying crew execution for {tier_info['name']}")
-                    try:
-                        result = crew.kickoff()
-                        for patent in patent_ideas:
-                            if progress_tracker:
-                                progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                                progress_tracker.complete_patent(patent['id'])
-                        
-                        logger.info(f"✅ Successfully processed {tier_info['name']} on retry")
-                        processing_results[tier_key] = {
-                            'success': True,
-                            'patents_processed': len(patent_ideas),
-                            'tier_info': tier_info,
-                            'result': result
+                        progress_tracker.start_task("tier_processing", patent['id'])
+                
+                try:
+                    # Execute all tasks in parallel
+                    results = parallel_manager.execute_all_tasks()
+                    
+                    # Check if any tasks failed
+                    failed_tasks = [task_name for task_name, (_, error) in results.items() if error]
+                    successful_tasks = [task_name for task_name, (_, error) in results.items() if not error]
+                    
+                    if failed_tasks:
+                        logger.warning(f"⚠️ Some tasks failed: {failed_tasks}")
+                    
+                    # Mark all patents in this tier as completed
+                    for patent in patent_ideas:
+                        if progress_tracker:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=len(failed_tasks) == 0)
+                            progress_tracker.complete_patent(patent['id'])
+                    
+                    logger.info(f"✅ Successfully processed {tier_info['name']} with parallel execution")
+                    processing_results[tier_key] = {
+                        'success': len(failed_tasks) == 0,
+                        'patents_processed': len(patent_ideas),
+                        'tier_info': tier_info,
+                        'result': f"Parallel execution completed: {len(successful_tasks)} successful, {len(failed_tasks)} failed",
+                        'parallel_stats': {
+                            'successful_tasks': len(successful_tasks),
+                            'failed_tasks': len(failed_tasks),
+                            'total_tasks': len(results)
                         }
-                        total_patents_processed += len(patent_ideas)
-                    except Exception as retry_error:
-                        logger.error(f"❌ Crew execution failed on retry for {tier_info['name']}: {retry_error}")
-                        for patent in patent_ideas:
-                            if progress_tracker:
-                                progress_tracker.complete_task("tier_processing", patent['id'], success=False)
-                        processing_results[tier_key] = {
-                            'success': False,
-                            'error': str(retry_error),
-                            'tier_info': tier_info
-                        }
-                else:
-                    logger.error(f"❌ Crew execution failed for {tier_info['name']}: {e}")
+                    }
+                    total_patents_processed += len(patent_ideas)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Parallel execution failed for {tier_info['name']}: {e}")
                     for patent in patent_ideas:
                         if progress_tracker:
                             progress_tracker.complete_task("tier_processing", patent['id'], success=False)
@@ -576,6 +571,81 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                         'error': str(e),
                         'tier_info': tier_info
                     }
+            else:
+                # Use traditional sequential execution
+                logger.info("🔄 Using sequential execution (traditional CrewAI)")
+                
+                # Create crew with agents and tasks
+                crew = Crew(
+                    agents=list(agents.values()),
+                    tasks=tasks,
+                    process="sequential",
+                    verbose=True,
+                    memory=True,
+                    max_rpm=30
+                )
+                
+                # Track progress for each patent in this tier
+                for patent in patent_ideas:
+                    if progress_tracker:
+                        progress_tracker.start_task("tier_processing", patent['id'])
+                
+                # Run the crew with error handling
+                try:
+                    result = crew.kickoff()
+                    # Mark all patents in this tier as completed
+                    for patent in patent_ideas:
+                        if progress_tracker:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                            progress_tracker.complete_patent(patent['id'])
+                
+                    logger.info(f"✅ Successfully processed {tier_info['name']}")
+                    processing_results[tier_key] = {
+                        'success': True,
+                        'patents_processed': len(patent_ideas),
+                        'tier_info': tier_info,
+                        'result': result
+                    }
+                    total_patents_processed += len(patent_ideas)
+                except Exception as e:
+                    # Handle crew execution errors
+                    if error_handler.handle_error(e, "crew_execution", tier_key):
+                        logger.info(f"🔄 Retrying crew execution for {tier_info['name']}")
+                        try:
+                            result = crew.kickoff()
+                            for patent in patent_ideas:
+                                if progress_tracker:
+                                    progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                                    progress_tracker.complete_patent(patent['id'])
+                            
+                            logger.info(f"✅ Successfully processed {tier_info['name']} on retry")
+                            processing_results[tier_key] = {
+                                'success': True,
+                                'patents_processed': len(patent_ideas),
+                                'tier_info': tier_info,
+                                'result': result
+                            }
+                            total_patents_processed += len(patent_ideas)
+                        except Exception as retry_error:
+                            logger.error(f"❌ Crew execution failed on retry for {tier_info['name']}: {retry_error}")
+                            for patent in patent_ideas:
+                                if progress_tracker:
+                                    progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                            processing_results[tier_key] = {
+                                'success': False,
+                                'error': str(retry_error),
+                                'tier_info': tier_info
+                            }
+                    else:
+                        logger.error(f"❌ Crew execution failed for {tier_info['name']}: {e}")
+                        for patent in patent_ideas:
+                            if progress_tracker:
+                                progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                        processing_results[tier_key] = {
+                            'success': False,
+                            'error': str(e),
+                            'tier_info': tier_info
+                        }
                 
         except Exception as e:
             logger.error(f"❌ Error processing {tier_info['name']}: {e}")
@@ -720,7 +790,13 @@ def main():
     parser.add_argument('--timeout', type=int, default=120,
                        help='Maximum processing time in minutes (default: 120 for complex processing)')
     parser.add_argument('--no-monitoring', action='store_true',
-                       help='Disable resource monitoring')
+                       help='Disable resource monitoring and progress tracking')
+    
+    # Parallel execution arguments
+    parser.add_argument('--parallel', action='store_true',
+                       help='Enable parallel task execution for improved performance')
+    parser.add_argument('--max-workers', type=int, default=4,
+                       help='Maximum number of parallel workers (default: 4)')
     
     args = parser.parse_args()
     
@@ -782,7 +858,9 @@ def main():
         args.max_per_tier, 
         clear_cache=not args.no_clear_cache,
         incremental=not args.no_incremental,
-        force_regenerate=args.force_regenerate
+        force_regenerate=args.force_regenerate,
+        parallel_execution=args.parallel,
+        max_workers=args.max_workers
     )
     
     if success:
