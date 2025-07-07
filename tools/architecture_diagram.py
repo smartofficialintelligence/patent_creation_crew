@@ -389,7 +389,7 @@ elements to emphasize differences from prior art.
         """Save individual diagram files: programmatic and LLM-based (GPT-4o)"""
         diagram_types = [
             'system_architecture',
-            'component_interaction', 
+            'component_interaction',
             'data_flow',
             'agent_coordination',
             'technical_features',

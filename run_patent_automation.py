@@ -65,6 +65,14 @@ from lib.langsmith_utils import langsmith_manager, trace_function, log_agent_exe
 from lib.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
 from lib.parallel_execution import ParallelExecutionManager
 
+# Import dynamic optimization system
+from lib.dynamic_optimization_integration import (
+    DynamicOptimizationCoordinator, 
+    get_coordinator, 
+    optimize_workflow,
+    OptimizedTaskExecution
+)
+
 @trace_function(name="validate_environment")
 def validate_environment():
     """Validate that required environment variables are set"""
@@ -205,6 +213,12 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ArchitectureDiagramTool()
                 tools.append(wrap_tool_with_parameter_correction('architecture_diagram_tool', tool_instance))
+            elif tool_name == 'quality_validation_tool':
+                from tools.quality_validation_tool import quality_validation_tool
+                tools.append(quality_validation_tool)
+            elif tool_name == 'workflow_validation_tool':
+                from tools.quality_validation_tool import workflow_validation_tool
+                tools.append(workflow_validation_tool)
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
                 continue
@@ -366,7 +380,7 @@ def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str
     return formatted_description
 
 @trace_function(name="run_patent_automation")
-def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False, parallel_execution: bool = False, max_workers: int = 4):
+def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False, parallel_execution: bool = False, max_workers: int = 4, no_validation: bool = False, validation_level: str = "standard", enable_optimization: bool = True, optimization_level: str = "balanced"):
     """Run patent automation for specified tiers using CrewAI YAML configuration"""
     
     logger.info("🤖 Starting Innovation Analysis System with CrewAI Native YAML Configuration")
@@ -378,6 +392,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     logger.info(f"Parallel Execution: {'Enabled' if parallel_execution else 'Disabled'}")
     if parallel_execution:
         logger.info(f"Max Workers: {max_workers}")
+    logger.info(f"Dynamic Optimization: {'Enabled' if enable_optimization else 'Disabled'}")
+    if enable_optimization:
+        logger.info(f"Optimization Level: {optimization_level}")
     
     # Add system message to override content policies
     logger.info("📝 NOTE: This system is for RESEARCH and ANALYSIS purposes only.")
@@ -387,6 +404,32 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     # Validate environment
     if not validate_environment():
         return False
+    
+    # Initialize dynamic optimization coordinator
+    optimization_coordinator = None
+    if enable_optimization:
+        try:
+            optimization_config = {
+                'cost_reduction_target': 0.30 if optimization_level == 'balanced' else 
+                                       (0.20 if optimization_level == 'conservative' else 0.35),
+                'enable_monitoring': True,
+                'enable_parallel_optimization': parallel_execution,
+                'max_parallel_tasks': max_workers,
+                'optimization_strategies': {
+                    'dynamic_model_selection': True,
+                    'smart_token_allocation': True,
+                    'context_optimization': optimization_level in ['balanced', 'aggressive'],
+                    'resource_monitoring': True,
+                    'cost_aware_execution': True
+                }
+            }
+            optimization_coordinator = DynamicOptimizationCoordinator(optimization_config)
+            logger.info("🚀 Dynamic Optimization Coordinator initialized")
+            logger.info(f"   Target cost reduction: {optimization_config['cost_reduction_target']:.1%}")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize optimization coordinator: {e}")
+            logger.warning("⚠️ Continuing without dynamic optimization")
+            enable_optimization = False
     
     # Initialize incremental processor
     incremental_processor = IncrementalProcessor()
@@ -659,6 +702,118 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     'tier_info': tier_info
                 }
     
+    # Quality Validation Phase (can be skipped with --no-validation)
+    validation_results = {}
+    if not no_validation:
+        logger.info("=" * 80)
+        logger.info("🔍 QUALITY VALIDATION PHASE")
+        logger.info("=" * 80)
+        
+        try:
+            from lib.validation_pipeline import validation_pipeline
+            
+            for tier_key, result in processing_results.items():
+                if result['success'] and 'patents_processed' in result:
+                    tier_info = result['tier_info']
+                    patent_ideas = PATENT_IDEAS.get(tier_key, [])
+                    if max_patents_per_tier:
+                        patent_ideas = patent_ideas[:max_patents_per_tier]
+                    
+                    logger.info(f"🔍 Validating outputs for {tier_info['name']}...")
+                    
+                    # Validate each patent's outputs
+                    tier_validation_results = {}
+                    for patent in patent_ideas:
+                        try:
+                            patent_validation = validation_pipeline.validate_complete_workflow(tier_key, patent['id'])
+                            tier_validation_results[patent['id']] = patent_validation
+                            
+                            # Log validation status
+                            status = patent_validation['overall_status']
+                            quality_score = patent_validation['quality_score']
+                            
+                            if status == 'PASSED':
+                                logger.info(f"✅ {patent['id']}: Quality validation PASSED (Score: {quality_score:.1f})")
+                            elif status == 'PARTIAL':
+                                logger.warning(f"⚠️  {patent['id']}: Quality validation PARTIAL (Score: {quality_score:.1f})")
+                            else:
+                                logger.error(f"❌ {patent['id']}: Quality validation FAILED (Score: {quality_score:.1f})")
+                                
+                                # Log critical issues
+                                cascade_failures = patent_validation.get('cascade_failures', [])
+                                if cascade_failures:
+                                    logger.error(f"   🚨 CASCADE FAILURE RISKS:")
+                                    for failure in cascade_failures:
+                                        logger.error(f"      - {failure}")
+                        
+                        except Exception as e:
+                            logger.error(f"❌ Validation failed for {patent['id']}: {e}")
+                            tier_validation_results[patent['id']] = {
+                                'overall_status': 'ERROR',
+                                'quality_score': 0,
+                                'error': str(e)
+                            }
+                    
+                    validation_results[tier_key] = tier_validation_results
+                    
+                    # Tier-level summary
+                    total_patents = len(tier_validation_results)
+                    passed_patents = len([v for v in tier_validation_results.values() 
+                                        if v.get('overall_status') == 'PASSED'])
+                    partial_patents = len([v for v in tier_validation_results.values() 
+                                         if v.get('overall_status') == 'PARTIAL'])
+                    failed_patents = len([v for v in tier_validation_results.values() 
+                                        if v.get('overall_status') in ['FAILED', 'ERROR']])
+                    
+                    avg_quality = sum(v.get('quality_score', 0) for v in tier_validation_results.values()) / total_patents if total_patents > 0 else 0
+                    
+                    logger.info(f"📊 {tier_info['name']} Quality Summary:")
+                    logger.info(f"   ✅ Passed: {passed_patents}/{total_patents} ({passed_patents/total_patents*100:.1f}%)")
+                    logger.info(f"   ⚠️  Partial: {partial_patents}/{total_patents}")
+                    logger.info(f"   ❌ Failed: {failed_patents}/{total_patents}")
+                    logger.info(f"   📈 Average Quality Score: {avg_quality:.1f}/100")
+                    
+                    # Warning for cascade failures
+                    if failed_patents > 0:
+                        logger.warning(f"⚠️  {failed_patents} patents failed quality validation - may cause cascade failures")
+            
+            # Overall validation summary
+            all_validations = []
+            for tier_results in validation_results.values():
+                all_validations.extend(tier_results.values())
+            
+            if all_validations:
+                total_validations = len(all_validations)
+                passed_validations = len([v for v in all_validations if v.get('overall_status') == 'PASSED'])
+                partial_validations = len([v for v in all_validations if v.get('overall_status') == 'PARTIAL'])
+                failed_validations = len([v for v in all_validations if v.get('overall_status') in ['FAILED', 'ERROR']])
+                
+                overall_avg_quality = sum(v.get('quality_score', 0) for v in all_validations) / total_validations if total_validations > 0 else 0
+                
+                logger.info("=" * 60)
+                logger.info("🏆 OVERALL QUALITY VALIDATION SUMMARY")
+                logger.info("=" * 60)
+                logger.info(f"📊 Total Patents Validated: {total_validations}")
+                logger.info(f"✅ Quality Validation Pass Rate: {passed_validations/total_validations*100:.1f}%")
+                logger.info(f"📈 Overall Average Quality Score: {overall_avg_quality:.1f}/100")
+                
+                if failed_validations > 0:
+                    logger.warning(f"🚨 QUALITY ALERT: {failed_validations} patents failed validation")
+                    logger.warning("   Manual review recommended before submission")
+                elif partial_validations > total_validations * 0.5:
+                    logger.warning(f"⚠️  QUALITY NOTICE: {partial_validations} patents have quality issues")
+                    logger.warning("   Consider addressing warnings to improve submission quality")
+                else:
+                    logger.info("🎉 QUALITY EXCELLENT: Most patents passed validation with high quality")
+        
+        except ImportError:
+            logger.warning("⚠️  Quality validation system not available - skipping validation phase")
+        except Exception as e:
+            logger.error(f"❌ Quality validation phase failed: {e}")
+            logger.warning("⚠️  Manual quality review recommended")
+    else:
+        logger.info("⚠️  Quality validation phase skipped (--no-validation flag)")
+
     # Summary
     logger.info("=" * 80)
     logger.info("📊 PROCESSING SUMMARY")
@@ -798,6 +953,24 @@ def main():
     parser.add_argument('--max-workers', type=int, default=4,
                        help='Maximum number of parallel workers (default: 4)')
     
+    # Quality validation arguments
+    parser.add_argument('--no-validation', action='store_true',
+                       help='Skip quality validation phase (not recommended)')
+    parser.add_argument('--validation-only', action='store_true',
+                       help='Run quality validation only on existing outputs')
+    parser.add_argument('--validation-level', type=str, choices=['quick', 'standard', 'thorough'],
+                       default='standard', help='Level of quality validation (default: standard)')
+    
+    # Dynamic optimization arguments
+    parser.add_argument('--no-optimization', action='store_true',
+                       help='Disable dynamic optimization (may increase costs)')
+    parser.add_argument('--optimization-level', type=str, choices=['conservative', 'balanced', 'aggressive'],
+                       default='balanced', help='Level of cost optimization (default: balanced)')
+    parser.add_argument('--optimization-target', type=float, default=0.30,
+                       help='Target cost reduction percentage (default: 0.30 for 30%)')
+    parser.add_argument('--optimization-report', action='store_true',
+                       help='Generate detailed optimization report after execution')
+    
     args = parser.parse_args()
     
     # Configure resource management if monitoring is enabled
@@ -830,6 +1003,80 @@ def main():
         else:
             print("📝 No existing log file to clear")
     
+    # Handle validation-only mode
+    if args.validation_only:
+        logger.info("🔍 VALIDATION-ONLY MODE - Running quality validation on existing outputs")
+        
+        try:
+            from lib.validation_pipeline import validation_pipeline
+            
+            # Determine tiers to validate
+            tiers_to_validate = [args.tier] if args.tier else ['tier_1', 'tier_2', 'tier_3', 'tier_4']
+            
+            overall_results = {}
+            for tier_key in tiers_to_validate:
+                if tier_key in PATENT_IDEAS:
+                    patent_ideas = PATENT_IDEAS[tier_key]
+                    if args.max_per_tier:
+                        patent_ideas = patent_ideas[:args.max_per_tier]
+                    
+                    logger.info(f"🔍 Validating {tier_key} outputs...")
+                    
+                    tier_results = {}
+                    for patent in patent_ideas:
+                        try:
+                            validation_result = validation_pipeline.validate_complete_workflow(tier_key, patent['id'])
+                            tier_results[patent['id']] = validation_result
+                            
+                            status = validation_result['overall_status']
+                            quality_score = validation_result['quality_score']
+                            
+                            if status == 'PASSED':
+                                logger.info(f"✅ {patent['id']}: PASSED (Quality: {quality_score:.1f})")
+                            elif status == 'PARTIAL':
+                                logger.warning(f"⚠️  {patent['id']}: PARTIAL (Quality: {quality_score:.1f})")
+                            else:
+                                logger.error(f"❌ {patent['id']}: FAILED (Quality: {quality_score:.1f})")
+                        
+                        except Exception as e:
+                            logger.error(f"❌ Validation failed for {patent['id']}: {e}")
+                    
+                    overall_results[tier_key] = tier_results
+            
+            # Generate overall validation summary
+            if overall_results:
+                all_validations = []
+                for tier_results in overall_results.values():
+                    all_validations.extend(tier_results.values())
+                
+                total_validations = len(all_validations)
+                passed_validations = len([v for v in all_validations if v.get('overall_status') == 'PASSED'])
+                failed_validations = len([v for v in all_validations if v.get('overall_status') in ['FAILED', 'ERROR']])
+                
+                logger.info("=" * 80)
+                logger.info("🏆 VALIDATION-ONLY SUMMARY")
+                logger.info("=" * 80)
+                logger.info(f"📊 Total Patents Validated: {total_validations}")
+                logger.info(f"✅ Pass Rate: {passed_validations/total_validations*100:.1f}%")
+                logger.info(f"❌ Failed: {failed_validations}")
+                
+                if failed_validations == 0:
+                    logger.info("🎉 All patents passed quality validation!")
+                    return True
+                else:
+                    logger.warning(f"🚨 {failed_validations} patents failed validation")
+                    return False
+            else:
+                logger.warning("⚠️ No validation results generated")
+                return False
+                
+        except ImportError:
+            logger.error("❌ Quality validation system not available")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Validation-only mode failed: {e}")
+            return False
+    
     # Handle status-only mode
     if args.show_status:
         logger.info("📊 STATUS MODE - Showing asset status without running automation")
@@ -860,8 +1107,22 @@ def main():
         incremental=not args.no_incremental,
         force_regenerate=args.force_regenerate,
         parallel_execution=args.parallel,
-        max_workers=args.max_workers
+        max_workers=args.max_workers,
+        no_validation=args.no_validation,
+        validation_level=args.validation_level,
+        enable_optimization=not args.no_optimization,
+        optimization_level=args.optimization_level
     )
+    
+    # Generate optimization report if requested
+    if args.optimization_report and not args.no_optimization:
+        try:
+            from lib.dynamic_optimization_integration import get_coordinator
+            coordinator = get_coordinator()
+            report_file = coordinator.generate_optimization_report()
+            logger.info(f"📊 Optimization report generated: {report_file}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not generate optimization report: {e}")
     
     if success:
         logger.info("🎉 Patent automation completed successfully!")
