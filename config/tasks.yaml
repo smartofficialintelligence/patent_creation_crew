@@ -675,7 +675,7 @@ colab_demo_generation:
     - Clear technical disclosure supporting patent scope and claims
     - Professional documentation suitable for patent examiner review
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
-  output_file: "output/{tier}/{id}_colab_demo.ipynb"
+  output_file: "output/{tier}/{id}_colab_demo_log.md"
   agent: patent_writer
   context: [prior_art_research, claims_refinement, patent_integration, colab_demo_concept_review]
 
@@ -786,7 +786,7 @@ colab_demo_integration:
     - Accurate patent technology demonstration
     - Integration log for human review
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
-  output_file: "output/{tier}/{id}_colab_demo_final.ipynb"
+  output_file: "output/{tier}/{id}_colab_demo_integration_log.md"
   agent: patent_writer
   context: [prior_art_research, claims_refinement, patent_integration, colab_demo_generation, colab_demo_editorial_review]
 
