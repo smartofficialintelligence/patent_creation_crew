@@ -11,6 +11,12 @@ method-patent/
 │   ├── tasks.yaml         # Task definitions with output_pydantic
 │   ├── crew.yaml          # Crew configuration
 │   └── patents.yaml       # All 37 patents in structured format
+├── demos/                 # System demonstration scripts
+│   ├── demo_agent_aware_optimization.py
+│   ├── demo_dynamic_optimization.py
+│   ├── demo_quality_validation.py
+│   ├── demo_parallel_execution.py
+│   └── README.md          # Detailed demo documentation
 ├── core/                  # Core system modules
 │   ├── patent_data.py     # Patent database (37 patents)
 │   ├── automation.py      # Automation logic
@@ -99,6 +105,36 @@ method-patent/
    ```bash
    python run_patent_automation.py
    ```
+
+## 🎬 Demonstration Scripts
+
+The system includes several demonstration scripts that showcase different features and capabilities. These are located in the `demos/` directory:
+
+### Available Demos
+
+- **Agent-Aware Optimization** (`demos/demo_agent_aware_optimization.py`): Shows how the system preserves your thoughtfully selected agent models while achieving cost optimization
+- **Dynamic Optimization** (`demos/demo_dynamic_optimization.py`): Demonstrates 25-35% cost reduction through intelligent resource management
+- **Quality Validation** (`demos/demo_quality_validation.py`): Showcases the comprehensive quality validation pipeline
+- **Parallel Execution** (`demos/demo_parallel_execution.py`): Shows parallel task coordination and performance improvements
+
+### Running Demos
+
+```bash
+# Run individual demos
+python demos/demo_agent_aware_optimization.py
+python demos/demo_dynamic_optimization.py
+python demos/demo_quality_validation.py
+python demos/demo_parallel_execution.py
+
+# Run all demos sequentially
+for demo in demos/demo_*.py; do
+    echo "Running $demo..."
+    python "$demo"
+    echo "---"
+done
+```
+
+See `demos/README.md` for detailed documentation about each demo, including expected outputs and explanations of the features being demonstrated.
 
 ## 🔧 Troubleshooting
 
