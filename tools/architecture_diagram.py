@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field
 import yaml
 import graphviz
 import networkx as nx
+import matplotlib
+# Set matplotlib to use non-GUI backend for thread safety
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from langchain_openai import ChatOpenAI

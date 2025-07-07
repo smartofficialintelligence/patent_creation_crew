@@ -565,7 +565,7 @@ class ColabDemoGeneratorTool(BaseTool):
             try:
                 nb_node = nbformat.from_dict(notebook)
                 nbformat.validate(nb_node)
-            with open(notebook_file, 'w', encoding='utf-8') as f:
+                with open(notebook_file, 'w', encoding='utf-8') as f:
                     nbformat.write(nb_node, f)
             except Exception as nb_exc:
                 error_msg = f"Notebook validation or writing failed: {nb_exc}"

@@ -560,11 +560,27 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                 # Create parallel execution manager
                 parallel_manager = ParallelExecutionManager(max_workers=max_workers)
                 
-                # Group tasks by patent for better organization
-                # We'll add all tasks to the parallel manager
+                # Load task configuration to get proper task names
+                with open('config/tasks.yaml', 'r') as f:
+                    tasks_config = yaml.safe_load(f)
+                
+                # Create task name mapping based on patent and task type
                 task_mapping = {}
+                task_names = [name for name in tasks_config.keys() if name != 'task_generation']
+                
+                # Add tasks to parallel manager with proper names
                 for i, task in enumerate(tasks):
-                    task_name = f"task_{i}"
+                    # Calculate which patent and task type this is
+                    patent_index = i // len(task_names)
+                    task_type_index = i % len(task_names)
+                    
+                    if patent_index < len(patent_ideas) and task_type_index < len(task_names):
+                        patent_id = patent_ideas[patent_index]['id']
+                        task_type = task_names[task_type_index]
+                        task_name = f"{patent_id}_{task_type}"
+                    else:
+                        task_name = f"task_{i}"  # Fallback for edge cases
+                    
                     task_mapping[task_name] = task
                     parallel_manager.add_task(task_name, task)
                 
