@@ -165,11 +165,8 @@ architecture, component interactions, and system flows described in the patent.
 - External interfaces and integrations
 - Scalability and performance considerations
 
-**Programmatic Diagram:**
-![System Architecture (Programmatic)](system_architecture_programmatic.png)
-
-**LLM/Creative Diagram:**
-![System Architecture (LLM)](system_architecture_llm.png)
+**Architecture Diagram:**
+![System Architecture](system_architecture_programmatic.png)
 
 ---
 
@@ -185,11 +182,8 @@ architecture, component interactions, and system flows described in the patent.
 - Data exchange patterns
 - Error handling and recovery mechanisms
 
-**Programmatic Diagram:**
-![Component Interaction (Programmatic)](component_interaction_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Component Interaction (LLM)](component_interaction_llm.png)
+**Architecture Diagram:**
+![Component Interaction](component_interaction_programmatic.png)
 
 ---
 
@@ -200,96 +194,81 @@ architecture, component interactions, and system flows described in the patent.
 **Description**: {diagram_descriptions['data_flow']}
 
 **Key Elements**:
-- Data sources and sinks
-- Processing nodes and transformations
-- Data storage and retrieval
-- Performance bottlenecks and optimizations
+- Data sources and destinations
+- Processing stages and transformations
+- Information flow patterns
+- Data validation and quality controls
 
-**Programmatic Diagram:**
-![Data Flow (Programmatic)](data_flow_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Data Flow (LLM)](data_flow_llm.png)
+**Architecture Diagram:**
+![Data Flow](data_flow_programmatic.png)
 
 ---
 
 ## 4. Agent Coordination Network
 
-**Purpose**: Multi-agent system coordination and communication patterns.
+**Purpose**: Network visualization of multi-agent coordination and communication.
 
 **Description**: {diagram_descriptions['agent_coordination']}
 
 **Key Elements**:
 - Agent types and roles
 - Coordination protocols
-- Decision-making processes
-- Resource allocation and sharing
+- Communication patterns
+- Consensus mechanisms
 
-**Programmatic Diagram:**
-![Agent Coordination (Programmatic)](agent_coordination_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Agent Coordination (LLM)](agent_coordination_llm.png)
+**Architecture Diagram:**
+![Agent Coordination](agent_coordination_programmatic.png)
 
 ---
 
-## 5. Technical Feature Visualization
+## 5. Technical Feature Architecture
 
-**Purpose**: Detailed visualization of key technical innovations and features.
+**Purpose**: Architectural view of technical features and their relationships.
 
 **Description**: {diagram_descriptions['technical_features']}
 
 **Key Elements**:
-- Core technical innovations
-- Performance characteristics
-- Scalability features
-- Integration capabilities
+- Feature hierarchy and dependencies
+- Implementation components
+- Interface layers
+- Integration points
 
-**Programmatic Diagram:**
-![Technical Features (Programmatic)](technical_features_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Technical Features (LLM)](technical_features_llm.png)
+**Architecture Diagram:**
+![Technical Features](technical_features_programmatic.png)
 
 ---
 
-## 6. Performance Optimization Diagram
+## 6. Performance Optimization Analysis
 
-**Purpose**: System performance characteristics and optimization strategies.
+**Purpose**: Performance metrics and optimization strategy visualization.
 
 **Description**: {diagram_descriptions['performance_optimization']}
 
 **Key Elements**:
-- Performance metrics and benchmarks
-- Optimization techniques
-- Resource utilization
-- Scalability patterns
+- Performance metrics over time
+- Optimization improvements
+- Efficiency gains
+- Scalability indicators
 
-**Programmatic Diagram:**
-![Performance Optimization (Programmatic)](performance_optimization_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Performance Optimization (LLM)](performance_optimization_llm.png)
+**Architecture Diagram:**
+![Performance Optimization](performance_optimization_programmatic.png)
 
 ---
 
 ## 7. Prior Art Differentiation
 
-**Purpose**: Visual comparison showing differentiation from existing solutions.
+**Purpose**: Comparative analysis showing differentiation from existing solutions.
 
 **Description**: {diagram_descriptions['prior_art_differentiation']}
 
 **Key Elements**:
-- Comparison with existing technologies
-- Novel aspects and innovations
-- Competitive advantages
+- Competitive comparison metrics
+- Innovation differentiators
+- Performance advantages
 - Market positioning
 
-**Programmatic Diagram:**
-![Prior Art Differentiation (Programmatic)](prior_art_differentiation_programmatic.png)
-
-**LLM/Creative Diagram:**
-![Prior Art Differentiation (LLM)](prior_art_differentiation_llm.png)
+**Architecture Diagram:**
+![Prior Art Differentiation](prior_art_differentiation_programmatic.png)
 
 ---
 
@@ -423,9 +402,8 @@ elements to emphasize differences from prior art.
         
         for dtype in diagram_types:
             prog_path = os.path.join(output_dir, f"{dtype}_programmatic.png")
-            llm_path = os.path.join(output_dir, f"{dtype}_llm.png")
             
-            # Generate patent-specific programmatic diagrams
+            # Generate patent-specific programmatic diagrams only (remove confusing LLM placeholders)
             try:
                 if dtype == 'system_architecture':
                     self._generate_system_architecture_diagram(prog_path, patent_data)
@@ -436,7 +414,7 @@ elements to emphasize differences from prior art.
                 elif dtype == 'agent_coordination':
                     self._generate_agent_coordination_diagram(prog_path, patent_data)
                 elif dtype == 'technical_features':
-                    self._generate_technical_features_diagram(prog_path, patent_data)
+                    self._generate_technical_architecture_diagram(prog_path, patent_data)
                 elif dtype == 'performance_optimization':
                     self._generate_performance_optimization_diagram(prog_path, patent_data)
                 elif dtype == 'prior_art_differentiation':
@@ -448,13 +426,6 @@ elements to emphasize differences from prior art.
                 logger.error(f"❌ Failed to generate programmatic diagram {dtype}: {e}")
                 # Create fallback simple diagram
                 self._create_fallback_diagram(prog_path, dtype, patent_data)
-            
-            # Generate LLM-based diagrams (simplified approach)
-            try:
-                self._generate_llm_placeholder(llm_path, dtype, patent_data)
-                logger.info(f"✅ Generated LLM placeholder: {dtype}")
-            except Exception as e:
-                logger.error(f"❌ Failed to generate LLM placeholder {dtype}: {e}")
                 
         logger.info(f"📊 Created patent-specific diagram files in {output_dir}")
     
@@ -647,27 +618,63 @@ elements to emphasize differences from prior art.
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
     
-    def _generate_technical_features_diagram(self, output_path: str, patent_data: Dict[str, Any]):
-        """Generate technical features visualization"""
+    def _generate_technical_architecture_diagram(self, output_path: str, patent_data: Dict[str, Any]):
+        """Generate technical architecture diagram showing feature relationships"""
+        dot = graphviz.Digraph(comment='Technical Architecture')
+        dot.attr(rankdir='TB', size='10,8')
+        dot.attr('node', shape='box', style='rounded,filled')
+        
+        # Create feature hierarchy
         features = patent_data['features']
-        values = [len(f) * 10 + 50 for f in features]  # Generate values based on feature complexity
         
-        plt.figure(figsize=(12, 8))
-        bars = plt.bar(range(len(features)), values, color=['skyblue', 'lightgreen', 'lightcoral', 'gold', 'plum'][:len(features)])
+        # Add core system node
+        dot.node('core', 'Core System', fillcolor='lightcoral', shape='ellipse')
         
-        # Add value labels on bars
-        for bar, value in zip(bars, values):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
-                    f'{value}', ha='center', va='bottom', fontweight='bold')
+        # Add feature nodes with different colors based on type
+        feature_colors = {
+            'semantic': 'lightblue',
+            'processing': 'lightgreen', 
+            'optimization': 'lightyellow',
+            'analysis': 'lightpink',
+            'default': 'lightgray'
+        }
         
-        plt.xlabel('Technical Features', fontsize=12, fontweight='bold')
-        plt.ylabel('Capability Score', fontsize=12, fontweight='bold')
-        plt.title(f'Technical Features Overview\n{patent_data["system_name"]}', fontsize=14, fontweight='bold')
-        plt.xticks(range(len(features)), features, rotation=45, ha='right')
-        plt.grid(axis='y', alpha=0.3)
-        plt.tight_layout()
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        plt.close()
+        for i, feature in enumerate(features):
+            # Determine color based on feature type
+            feature_lower = feature.lower()
+            if 'semantic' in feature_lower or 'understanding' in feature_lower:
+                color = feature_colors['semantic']
+            elif 'processing' in feature_lower or 'execution' in feature_lower:
+                color = feature_colors['processing']
+            elif 'optimization' in feature_lower or 'performance' in feature_lower:
+                color = feature_colors['optimization']
+            elif 'analysis' in feature_lower or 'extraction' in feature_lower:
+                color = feature_colors['analysis']
+            else:
+                color = feature_colors['default']
+            
+            dot.node(f'feature_{i}', feature, fillcolor=color)
+            dot.edge('core', f'feature_{i}', label='implements')
+        
+        # Add supporting components
+        components = patent_data['main_components'][:3]  # Limit to 3 for clarity
+        for i, component in enumerate(components):
+            dot.node(f'comp_{i}', component, fillcolor='wheat', shape='box')
+            # Connect components to relevant features
+            if i < len(features):
+                dot.edge(f'feature_{i}', f'comp_{i}', label='enabled by', style='dashed')
+        
+        # Add external interfaces
+        dot.node('api', 'API Layer', fillcolor='lightsteelblue', shape='hexagon')
+        dot.node('storage', 'Data Layer', fillcolor='lightsteelblue', shape='hexagon')
+        
+        # Connect interfaces
+        if features:
+            dot.edge('api', 'feature_0', label='interface')
+            dot.edge(f'feature_{len(features)-1}', 'storage', label='persistence')
+        
+        output_path_no_ext = output_path.replace('.png', '')
+        dot.render(output_path_no_ext, format='png', cleanup=True)
     
     def _generate_performance_optimization_diagram(self, output_path: str, patent_data: Dict[str, Any]):
         """Generate performance optimization diagram"""
@@ -740,46 +747,6 @@ elements to emphasize differences from prior art.
                 ha='center', va='center', fontsize=14, 
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray"))
         plt.axis('off')
-        plt.tight_layout()
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    def _generate_llm_placeholder(self, output_path: str, diagram_type: str, patent_data: Dict[str, Any]):
-        """Generate LLM-based diagram placeholder (since actual image generation is complex)"""
-        plt.figure(figsize=(10, 8))
-        
-        # Create a more sophisticated placeholder
-        fig, ax = plt.subplots(figsize=(10, 8))
-        
-        # Create a nice background
-        ax.set_facecolor('#f8f9fa')
-        
-        # Add title
-        ax.text(0.5, 0.9, f'{diagram_type.replace("_", " ").title()}', 
-                ha='center', va='center', fontsize=16, fontweight='bold', 
-                transform=ax.transAxes)
-        
-        # Add system name
-        ax.text(0.5, 0.8, patent_data["system_name"], 
-                ha='center', va='center', fontsize=14, 
-                transform=ax.transAxes, style='italic')
-        
-        # Add feature list
-        features_text = "Key Features:\n" + "\n".join([f"• {f}" for f in patent_data['features'][:3]])
-        ax.text(0.5, 0.5, features_text, 
-                ha='center', va='center', fontsize=12, 
-                transform=ax.transAxes,
-                bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
-        
-        # Add note about LLM generation
-        ax.text(0.5, 0.2, "Advanced LLM-Generated Diagram\n(Conceptual Representation)", 
-                ha='center', va='center', fontsize=10, 
-                transform=ax.transAxes, alpha=0.7)
-        
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-        
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close() 
