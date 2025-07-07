@@ -528,23 +528,29 @@ class ColabDemoGeneratorTool(BaseTool):
                 "outputs": [],
                 "source": [generated_code]
             })
-            # Editorial feedback integration
-            if accepted_suggestions:
+            
+            # Editorial feedback integration logic:
+            # - Initial notebook: Shows editorial process information for transparency
+            # - Final notebook: Clean and submission-ready (no editorial comments)
+            # - Editorial suggestions are still integrated into the generated code above
+            if editorial_feedback:
+                # Final notebook: Clean and submission-ready (no editorial comments)
+                pass  # No editorial suggestions in final notebook
+            else:
+                # Initial notebook: Include editorial process information for transparency
                 notebook["cells"].append({
                     "cell_type": "markdown",
                     "metadata": {},
                     "source": [
-                        "## Integrated Editorial Suggestions\n\n",
-                        *[f"- {s}\n" for s in accepted_suggestions]
-                    ]
-                })
-            if rejected_suggestions:
-                notebook["cells"].append({
-                    "cell_type": "markdown",
-                    "metadata": {},
-                    "source": [
-                        "## Rejected Editorial Suggestions\n\n",
-                        *[f"- {s} (reason: not aligned with demonstration goals)\n" for s in rejected_suggestions]
+                        "## Editorial Review Process\n\n",
+                        "This notebook will undergo editorial review to enhance:\n",
+                        "- Code quality and best practices implementation\n", 
+                        "- Educational content clarity and completeness\n",
+                        "- Performance demonstration accuracy\n",
+                        "- Interactive functionality and user experience\n",
+                        "- Technical accuracy and patent claim alignment\n\n",
+                        "The final version will integrate accepted improvements while maintaining\n",
+                        "technical accuracy and patent demonstration effectiveness.\n"
                     ]
                 })
 
