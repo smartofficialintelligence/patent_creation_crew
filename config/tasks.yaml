@@ -578,6 +578,52 @@ patent_valuation:
   agent: valuation_expert
   context: [prior_art_research, claims_refinement]
 
+colab_demo_concept_review:
+  description: |
+    Strategic concept review and implementation planning for Colab demo:
+    
+    PATENT: {title} (ID: {id})
+    TIER: {tier} ({tier_name})
+    
+    CONCEPT REVIEW OBJECTIVES:
+    1. Strategic approach evaluation -  Is the concept sufficient for patent enablement and also reasonable for a skilled artisan to implement.
+    2. Claim prioritization - Which claims should be the demo's primary focus?
+    3. Implementation strategy - What's the most effective technical approach?
+    4. Resource optimization - How can we maximize impact with available resources?
+    5. Performance targets - Are the claimed performance metrics achievable and demonstrable?
+    6. User experience design - How can we make the demo compelling yet technically rigorous?
+
+    PATENT DETAILS:
+    - Description: {description}
+    - Key Claims: {claims_list}
+    - Market Applications: {market_applications}
+    - Technical Features: {technical_features}
+    - Value Estimate: {value_estimate}
+    - Tier: {tier_name}
+    
+    STRATEGIC ANALYSIS REQUIRED:
+    - Evaluate which claims provide the highest demonstration value
+    - Assess technical feasibility vs. demonstration impact trade-offs
+    - Recommend optimal implementation approach and architecture
+    - Identify potential performance benchmarks and success metrics
+    - Suggest interactive elements that enhance patent understanding
+    - Propose risk mitigation strategies for complex technical implementations
+    
+    DELIVERABLE: Provide a comprehensive concept review with:
+    1. Recommended primary claims to demonstrate (prioritized list)
+    2. Optimal implementation strategy and technical approach for automated code generation
+    3. Suggested performance benchmarks and success criteria for immediate implementation
+    4. Interactive demo design recommendations for automated notebook generation
+    5. Risk assessment and mitigation strategies for code generation
+    6. Implementation priority and complexity assessment for the automated workflow
+    
+    CRITICAL: This guidance will be immediately implemented by AI agents through automated code generation in the next step of the workflow. Focus on what should be automatically generated, not human development timelines.
+    
+    Format your response as a structured strategic analysis that will guide the immediate automated demo implementation.
+  expected_output: "Comprehensive strategic concept review with prioritized recommendations for demo implementation approach, claim focus, and technical strategy"
+  agent: demo_concept_reviewer
+  output_file: "output/{tier}/{id}_colab_demo_concept_review.md"
+
 colab_demo_generation:
   description: |
     Generate interactive Google Colab demo notebook as patent demonstration component:
@@ -631,7 +677,7 @@ colab_demo_generation:
   output_pydantic: tools.colab_demo_generator.ColabDemoGeneratorInput
   output_file: "output/{tier}/{id}_colab_demo.ipynb"
   agent: patent_writer
-  context: [prior_art_research, claims_refinement, patent_integration]
+  context: [prior_art_research, claims_refinement, patent_integration, colab_demo_concept_review]
 
 colab_demo_editorial_review:
   description: |

@@ -62,7 +62,7 @@ def show_status(tier_filter=None, max_per_tier=None):
         logger.info(f"\n🎯 {tier_info['name']} ({tier_key})")
         logger.info("-" * 60)
         
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config)
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
         
         missing_count = len(summary['missing_assets'])
         existing_count = len(summary['existing_assets'])
@@ -147,7 +147,7 @@ def show_missing_only(tier_filter=None, max_per_tier=None):
             patent_ideas = patent_ideas[:max_per_tier]
         
         tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config)
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
         
         if summary['missing_assets']:
             logger.info(f"\n🎯 {tier_info['name']} ({tier_key}) - Missing Assets:")
@@ -184,7 +184,7 @@ def show_task_completion(tier_filter=None, max_per_tier=None):
         if max_per_tier:
             patent_ideas = patent_ideas[:max_per_tier]
         
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config)
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
         
         # Count by task type
         for asset in summary['existing_assets']:

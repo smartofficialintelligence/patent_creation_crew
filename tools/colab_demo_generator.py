@@ -428,7 +428,7 @@ class ColabDemoGeneratorTool(BaseTool):
 
             # --- Dynamic claim analysis and code generation ---
             selected_claim = select_claim_to_demonstrate(key_claims)
-            
+
             # --- Editorial review logic ---
             accepted_suggestions = []
             rejected_suggestions = []

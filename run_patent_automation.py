@@ -478,7 +478,7 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             # Show incremental processing report
             if incremental:
                 logger.info(f"📊 Analyzing existing assets for {tier_info['name']}...")
-                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config)
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, tier_key)
                 
                 # Filter tasks for incremental processing
                 original_task_count = len(tasks)
@@ -772,7 +772,7 @@ def main():
                 
                 tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
                 logger.info(f"\n🎯 {tier_info['name']} Status:")
-                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config)
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, tier_key)
         
         return True
     
