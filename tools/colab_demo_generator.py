@@ -11,8 +11,46 @@ from lib.validation import validate_patent_dict
 
 # --- New helper functions for dynamic claim analysis and editorial review ---
 def select_claim_to_demonstrate(key_claims: List[str]) -> str:
-    # Placeholder: select the first claim (could be improved with LLM or heuristics)
-    return key_claims[0] if key_claims else "No claims provided"
+    """
+    Select the most implementable claim for demonstration.
+    Prioritizes claims that can showcase substantial code implementations.
+    """
+    if not key_claims:
+        return "No claims provided"
+    
+    # Priority keywords for selecting claims (in order of preference)
+    priority_keywords = [
+        ['semantic', 'agent', 'reasoning'],       # Semantic agent claims
+        ['multi-agent', 'coordination'],          # Multi-agent coordination
+        ['gpu', 'acceleration', 'processing'],    # GPU acceleration
+        ['optimization', 'system'],               # General optimization
+        ['method', 'architecture'],               # Method/architecture claims
+    ]
+    
+    # Score each claim based on priority keywords
+    claim_scores = []
+    for i, claim in enumerate(key_claims):
+        score = 0
+        claim_lower = claim.lower()
+        
+        # Check each priority keyword set
+        for priority_level, keywords in enumerate(priority_keywords):
+            if any(keyword in claim_lower for keyword in keywords):
+                # Higher priority = higher score (reverse priority_level)
+                score = len(priority_keywords) - priority_level
+                # Bonus for multiple matching keywords
+                matches = sum(1 for keyword in keywords if keyword in claim_lower)
+                score += matches * 0.5
+                break
+        
+        claim_scores.append((score, i, claim))
+    
+    # Select the highest scoring claim
+    claim_scores.sort(key=lambda x: x[0], reverse=True)
+    selected_claim = claim_scores[0][2]
+    
+    print(f"Selected claim for demonstration: {selected_claim}")
+    return selected_claim
 
 def generate_code_for_claim(claim: str, accepted_suggestions: List[str] = None) -> str:
     """
@@ -27,7 +65,11 @@ def generate_code_for_claim(claim: str, accepted_suggestions: List[str] = None) 
     needs_benchmarks = any("benchmark" in s.lower() or "performance" in s.lower() for s in accepted_suggestions)
     needs_visualization = any("visualiz" in s.lower() for s in accepted_suggestions)
     
-    if "semantic agent" in claim.lower():
+    # Enhanced pattern matching for claim types
+    claim_lower = claim.lower()
+    
+    # Check for semantic agent claims (more flexible matching)
+    if any(keyword in claim_lower for keyword in ['semantic', 'agent', 'reasoning', 'autonomous']):
         code = []
         
         # Add comprehensive imports
@@ -283,9 +325,9 @@ if len(benchmark_results) > 0:
         return "\n".join(code)
     
     # Add more sophisticated claim mappings
-    elif "multi-agent coordination" in claim.lower():
+    elif any(keyword in claim_lower for keyword in ['multi-agent', 'coordination', 'voting', 'priority']):
         return generate_multi_agent_code(accepted_suggestions)
-    elif "gpu acceleration" in claim.lower():
+    elif any(keyword in claim_lower for keyword in ['gpu', 'acceleration', 'processing', 'millisecond']):
         return generate_gpu_code(accepted_suggestions)
     
     # Default implementation with improvements
