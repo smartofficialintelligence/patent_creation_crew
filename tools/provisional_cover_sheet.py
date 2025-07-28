@@ -2,7 +2,10 @@
 
 from datetime import datetime
 from typing import Dict, Any
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from pydantic import BaseModel
 
 # Import from lib modules

@@ -5,7 +5,10 @@ Automatically corrects common parameter name mistakes before calling tools.
 
 import logging
 from typing import Dict, Any, Callable
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from lib.tool_parameter_mapping import validate_tool_parameters, get_tool_parameter_guide
 from pydantic import Field
 

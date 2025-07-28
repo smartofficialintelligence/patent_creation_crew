@@ -6,12 +6,18 @@ Wraps existing tools with retry logic and error recovery
 
 import logging
 from typing import Dict, Any, Callable, Optional
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 
 logger = logging.getLogger(__name__)
 
 class RetryWrapperTool(BaseTool):
     """Wrapper tool that adds retry logic to existing tools"""
+    
+    name: str = "retry_wrapper_tool"
+    description: str = "Retry-enabled wrapper for existing tools"
     
     def __init__(self, 
                  wrapped_tool: BaseTool,
@@ -19,19 +25,17 @@ class RetryWrapperTool(BaseTool):
                  tool_name: str,
                  max_retries: int = 3):
         super().__init__()
-        self.wrapped_tool = wrapped_tool
-        self.retry_manager = retry_manager
-        self.tool_name = tool_name
-        self.max_retries = max_retries
+        # Store wrapped tool as instance variable, not field
+        self._wrapped_tool = wrapped_tool
+        self._retry_manager = retry_manager
+        self._tool_name = tool_name
+        self._max_retries = max_retries
         
         # Copy attributes from wrapped tool
         self.name = f"retry_{wrapped_tool.name}"
         self.description = f"Retry-enabled version of {wrapped_tool.description}"
         
-        # Copy the _run method signature
-        self._run = self._wrapped_run
-    
-    def _wrapped_run(self, *args, **kwargs) -> str:
+    def _run(self, *args, **kwargs) -> str:
         """Execute the wrapped tool with retry logic"""
         # Extract patent_id from arguments if available
         patent_id = kwargs.get('patent_id', 'unknown')
@@ -42,19 +46,19 @@ class RetryWrapperTool(BaseTool):
         
         # Use the retry manager to execute the tool
         def tool_function(*tool_args, **tool_kwargs):
-            return self.wrapped_tool._run(*tool_args, **tool_kwargs)
+            return self._wrapped_tool._run(*tool_args, **tool_kwargs)
         
         try:
-            result = self.retry_manager.execute_with_retry(
+            result = self._retry_manager.execute_with_retry(
                 patent_id=patent_id,
-                tool_name=self.tool_name,
+                tool_name=self._tool_name,
                 tool_function=tool_function,
                 *args,
                 **kwargs
             )
             return result
         except Exception as e:
-            logger.error(f"RetryWrapperTool failed for {self.tool_name}: {e}")
+            logger.error(f"RetryWrapperTool failed for {self._tool_name}: {e}")
             return f"ERROR IN RETRY WRAPPER: {str(e)}"
 
 def create_retry_wrapped_tools(tools: Dict[str, BaseTool], retry_manager) -> Dict[str, RetryWrapperTool]:

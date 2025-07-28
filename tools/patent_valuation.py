@@ -4,7 +4,10 @@ import re
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from pydantic import BaseModel, validator
 import json
 from lib.langsmith_utils import trace_function

@@ -7,13 +7,33 @@
 # - Executes independent tasks in parallel for 40-60% performance improvement
 # - Maintains CrewAI compatibility while optimizing execution flow
 # - Use --max-workers N to control parallel worker count (default: 4)
+#
+# INTEGRATION OPTIMIZATION:
+# This configuration has been optimized to ensure patent_integration produces
+# comprehensive 15-20 page documents with full technical detail, not summaries
 
 crew:
   name: "Patent Automation Crew"
-  description: "A crew for automated patent research, drafting, and review."
+  description: "A crew for automated patent research, drafting, and review with comprehensive integration"
   agents: !include agents.yaml
   tasks: !include tasks.yaml
   process: sequential
   memory: true
   verbose: true
-  max_rpm: 30 
+  max_rpm: 30
+  
+  # Quality control settings for patent integration
+  quality_control:
+    min_patent_length: 15  # Minimum pages for final patent
+    max_patent_length: 20  # Maximum pages for final patent
+    require_code_examples: true
+    require_all_claims: true
+    require_disclaimers: true
+    require_alternative_embodiments: true
+    
+  # Integration validation settings
+  integration_validation:
+    check_completeness: true
+    reject_summaries: true
+    enforce_content_requirements: true
+    validate_section_lengths: true

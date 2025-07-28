@@ -47,22 +47,22 @@ def show_status(tier_filter=None, max_per_tier=None):
     total_missing = 0
     total_existing = 0
     
-    for tier_key in ['tier_1', 'tier_2', 'tier_3']:
-        if tier_filter and tier_key != tier_filter:
+    for phase_key in ['phase_1', 'phase_2', 'phase_3']:
+        if tier_filter and phase_key != tier_filter:
             continue
             
-        if tier_key not in PATENT_IDEAS:
+        if phase_key not in PATENT_IDEAS:
             continue
             
-        patent_ideas = PATENT_IDEAS[tier_key]
+        patent_ideas = PATENT_IDEAS[phase_key]
         if max_per_tier:
             patent_ideas = patent_ideas[:max_per_tier]
         
-        tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
-        logger.info(f"\n🎯 {tier_info['name']} ({tier_key})")
+        phase_info = PATENT_CONFIG['portfolio_tiers'][phase_key]
+        logger.info(f"\n🎯 {phase_info['name']} ({phase_key})")
         logger.info("-" * 60)
         
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, phase_key)
         
         missing_count = len(summary['missing_assets'])
         existing_count = len(summary['existing_assets'])
@@ -135,22 +135,22 @@ def show_missing_only(tier_filter=None, max_per_tier=None):
     
     missing_assets = []
     
-    for tier_key in ['tier_1', 'tier_2', 'tier_3']:
-        if tier_filter and tier_key != tier_filter:
+    for phase_key in ['phase_1', 'phase_2', 'phase_3']:
+        if tier_filter and phase_key != tier_filter:
             continue
             
-        if tier_key not in PATENT_IDEAS:
+        if phase_key not in PATENT_IDEAS:
             continue
             
-        patent_ideas = PATENT_IDEAS[tier_key]
+        patent_ideas = PATENT_IDEAS[phase_key]
         if max_per_tier:
             patent_ideas = patent_ideas[:max_per_tier]
         
-        tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
+        phase_info = PATENT_CONFIG['portfolio_tiers'][phase_key]
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, phase_key)
         
         if summary['missing_assets']:
-            logger.info(f"\n🎯 {tier_info['name']} ({tier_key}) - Missing Assets:")
+            logger.info(f"\n🎯 {phase_info['name']} ({phase_key}) - Missing Assets:")
             for asset in summary['missing_assets']:
                 missing_assets.append(asset)
                 logger.info(f"  - {asset['patent_id']} - {asset['task_name']}")
@@ -173,18 +173,18 @@ def show_task_completion(tier_filter=None, max_per_tier=None):
     
     task_stats = {}
     
-    for tier_key in ['tier_1', 'tier_2', 'tier_3']:
-        if tier_filter and tier_key != tier_filter:
+    for phase_key in ['phase_1', 'phase_2', 'phase_3']:
+        if tier_filter and phase_key != tier_filter:
             continue
             
-        if tier_key not in PATENT_IDEAS:
+        if phase_key not in PATENT_IDEAS:
             continue
             
-        patent_ideas = PATENT_IDEAS[tier_key]
+        patent_ideas = PATENT_IDEAS[phase_key]
         if max_per_tier:
             patent_ideas = patent_ideas[:max_per_tier]
         
-        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, tier_key)
+        summary = incremental_processor.get_missing_assets_summary(patent_ideas, tasks_config, phase_key)
         
         # Count by task type
         for asset in summary['existing_assets']:
@@ -231,8 +231,8 @@ Examples:
   # Force regenerate all assets
   python scripts/incremental_manager.py --force-regenerate-all
   
-  # Show status for specific tier
-  python scripts/incremental_manager.py --status --tier tier_1
+  # Show status for specific phase
+  python scripts/incremental_manager.py --status --phase phase_1
   
   # Show status with limited patents
   python scripts/incremental_manager.py --status --max-per-tier 2
@@ -252,8 +252,8 @@ Examples:
                        help='Force regeneration of all assets')
     
     # Filter arguments
-    parser.add_argument('--tier', type=str, choices=['tier_1', 'tier_2', 'tier_3'],
-                       help='Filter by specific tier')
+    parser.add_argument('--phase', type=str, choices=['phase_1', 'phase_2', 'phase_3'],
+                       help='Filter by specific phase')
     parser.add_argument('--max-per-tier', type=int,
                        help='Maximum number of patents to process per tier')
     
@@ -270,13 +270,13 @@ Examples:
     # Execute requested actions
     try:
         if args.status:
-            show_status(args.tier, args.max_per_tier)
+            show_status(args.phase, args.max_per_tier)
         
         if args.missing_only:
-            show_missing_only(args.tier, args.max_per_tier)
+            show_missing_only(args.phase, args.max_per_tier)
         
         if args.task_stats:
-            show_task_completion(args.tier, args.max_per_tier)
+            show_task_completion(args.phase, args.max_per_tier)
         
         if args.force_regenerate:
             patent_id, task_name = args.force_regenerate

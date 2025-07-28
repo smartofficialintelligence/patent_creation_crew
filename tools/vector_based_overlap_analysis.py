@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Dict, Any, List
 import os
 import logging
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from pydantic import BaseModel, validator
 
 # Import from lib modules

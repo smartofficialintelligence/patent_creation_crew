@@ -1,13 +1,22 @@
-# Move RealPatentSearchTool class here with all dependencies and imports. 
+#!/usr/bin/env python3
+"""
+Real Patent Search Tool for Patent Automation System
+Performs real-time patent search using external APIs
+"""
+
+import logging
+from typing import Dict, Any, Optional, List
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 
 import os
 import requests
-import logging
 import time
 import re
-from typing import Optional, List, Dict, Any
+import hashlib
 from pydantic import BaseModel, validator
-from crewai.tools import BaseTool
 from datetime import datetime
 import json
 from lib.langsmith_utils import trace_function
@@ -69,7 +78,11 @@ class RealPatentSearchTool(BaseTool):
     session: Optional[requests.Session] = None
 
     def __init__(self, lens_api_key: Optional[str] = None, epo_api_key: Optional[str] = None, use_epo_ops: bool = False):
-        super().__init__()
+        super().__init__(
+            name="real_patent_search_tool",
+            func=self._run,
+            description="Performs real patent searches using Lens.org by default, with optional EPO OPS for legal/family mapping or as fallback."
+        )
         self.lens_api_key = lens_api_key or os.getenv('LENS_API_KEY')
         self.epo_api_key = epo_api_key or os.getenv('EPO_API_KEY')
         self.use_epo_ops = use_epo_ops
@@ -109,7 +122,7 @@ class RealPatentSearchTool(BaseTool):
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
             differentiation = differentiation or "No differentiation specified"
-            tier = tier or "tier_1"  # Default to tier_1 if not specified
+            tier = tier or "phase_1"  # Default to phase_1 if not specified
             
             # All inputs are guaranteed valid by Pydantic
             validated_data = {
@@ -255,12 +268,12 @@ API Status:
                 # Check cache first
                 cached_results = smart_cache.get(cache_key, "patent_data")
                 if cached_results is not None:
-                    logger.info(f"✅ Cache hit for Lens search: {query[:50]}...")
+                    logging.info(f"✅ Cache hit for Lens search: {query[:50]}...")
                     results.extend(cached_results)
                     continue
                 
                 # Perform API call if not cached
-                logger.info(f"🔄 Performing Lens search: {query[:50]}...")
+                logging.info(f"🔄 Performing Lens search: {query[:50]}...")
                 
                 url = f"{self.lens_base_url}/patent/search"
                 headers = {

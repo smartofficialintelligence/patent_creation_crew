@@ -97,10 +97,10 @@ class ResourceManager:
                     if self.cpu_alert_callback:
                         self.cpu_alert_callback(cpu_percent)
                 
-                # Check disk usage
-                disk_usage = psutil.disk_usage('.').used / (1024**3)
-                if disk_usage > self.max_disk_gb:
-                    logger.warning(f"⚠️ High disk usage: {disk_usage:.1f}GB (limit: {self.max_disk_gb}GB)")
+                # Check disk usage - disabled as it's not useful for project outputs
+                # disk_usage = psutil.disk_usage('.').used / (1024**3)
+                # if disk_usage > self.max_disk_gb:
+                #     logger.warning(f"⚠️ High disk usage: {disk_usage:.1f}GB (limit: {self.max_disk_gb}GB)")
                 
                 # Check timeout
                 if self.start_time:
@@ -131,7 +131,15 @@ Total Processing Time: {self.total_processing_time:.1f} minutes / {self.timeout_
         """Get current resource status"""
         memory_gb = psutil.virtual_memory().used / (1024**3)
         cpu_percent = psutil.cpu_percent()
-        disk_usage = psutil.disk_usage('.').used / (1024**3)
+        
+        # Calculate output directory size instead of total disk usage
+        output_dir_size = 0.0
+        try:
+            output_dir = Path("output")
+            if output_dir.exists():
+                output_dir_size = sum(f.stat().st_size for f in output_dir.rglob('*') if f.is_file()) / (1024**3)
+        except Exception:
+            output_dir_size = 0.0
         
         elapsed_minutes = 0
         if self.start_time:
@@ -142,8 +150,8 @@ Total Processing Time: {self.total_processing_time:.1f} minutes / {self.timeout_
             'memory_percent': (memory_gb / self.max_memory_gb) * 100,
             'cpu_percent': cpu_percent,
             'cpu_percent_of_limit': (cpu_percent / self.max_cpu_percent) * 100,
-            'disk_gb': disk_usage,
-            'disk_percent': (disk_usage / self.max_disk_gb) * 100,
+            'disk_gb': output_dir_size,
+            'disk_percent': (output_dir_size / self.max_disk_gb) * 100,
             'elapsed_minutes': elapsed_minutes,
             'timeout_percent': (elapsed_minutes / self.timeout_minutes) * 100,
             'peak_memory_gb': self.peak_memory_gb,

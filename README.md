@@ -10,7 +10,7 @@ method-patent/
 │   ├── agents.yaml        # Agent definitions and tool mappings
 │   ├── tasks.yaml         # Task definitions with output_pydantic
 │   ├── crew.yaml          # Crew configuration
-│   └── patents.yaml       # All 37 patents in structured format
+│   └── provisional_patents.yaml       # All 9 patents in structured format
 ├── demos/                 # System demonstration scripts
 │   ├── demo_agent_aware_optimization.py
 │   ├── demo_dynamic_optimization.py
@@ -444,13 +444,13 @@ All configuration is YAML-based in the `config/` directory:
 - **`agents.yaml`**: Define agents with roles, goals, and tools
 - **`tasks.yaml`**: Define tasks with descriptions and output validation
 - **`crew.yaml`**: Define crew workflows
-- **`patents.yaml`**: Structured patent data
+- **`provisional_patents.yaml`**: Structured patent data
 
 ## 🛠️ Development
 
 - **Tools**: Add new tools to `tools/` directory
 - **Configuration**: Modify YAML files in `config/`
-- **Patents**: Update `core/patent_data.py` or `config/patents.yaml`
+- **Patents**: Update `lib/patent_data.py` or `config/provisional_patents.yaml`
 - **Tests**: Add tests to `tests/` directory
 
 ## 📈 Output

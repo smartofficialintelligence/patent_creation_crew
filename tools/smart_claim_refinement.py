@@ -3,7 +3,10 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Any
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from pydantic import BaseModel, validator
 
 # Import from lib modules
@@ -49,7 +52,7 @@ class SmartClaimRefinementTool(BaseTool):
         try:
             with open(log_file, "w", encoding="utf-8") as f:
                 f.write(f"# Claim Refinement Log for Patent {patent_id}\n\n")
-                f.write(f"Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\n")
+                f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 f.write("## Original Claims\n\n")
                 for i, claim in enumerate(original_claims, 1):
                     f.write(f"{i}. {claim}\n")

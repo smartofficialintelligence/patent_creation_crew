@@ -3,7 +3,10 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Any
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 from pydantic import BaseModel, validator
 
 # Import from lib modules

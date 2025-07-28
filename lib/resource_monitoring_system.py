@@ -103,6 +103,14 @@ class ResourceMonitor:
             'cost_trend': 'stable'
         }
         
+        # Agent tracking
+        self.agent_tracking = {
+            'active_agents': {},  # agent_name -> {model, start_time, metrics}
+            'agent_history': [],  # Historical agent executions
+            'model_usage': defaultdict(lambda: {'count': 0, 'total_cost': 0.0, 'total_tokens': 0}),
+            'agent_performance': {}  # agent_name -> performance metrics
+        }
+        
         logger.info("📊 Resource Monitor initialized")
         logger.info(f"   Monitoring intervals: {self.config['monitoring_interval_seconds']}s")
         logger.info(f"   Alert thresholds: {len(self.thresholds)} configured")
@@ -690,6 +698,154 @@ class ResourceMonitor:
             for alert in recent_alerts
         ]
     
+    def track_agent_start(self, agent_name: str, model: str, task_type: str = None):
+        """Track when an agent starts execution"""
+        start_time = datetime.now()
+        
+        self.agent_tracking['active_agents'][agent_name] = {
+            'model': model,
+            'task_type': task_type,
+            'start_time': start_time,
+            'metrics': {
+                'cost': 0.0,
+                'tokens': 0,
+                'calls': 0,
+                'avg_response_time': 0.0
+            }
+        }
+        
+        logger.info(f"🤖 Agent started: {agent_name} (model: {model})")
+    
+    def track_agent_completion(self, agent_name: str, cost: float = 0.0, 
+                             tokens: int = 0, response_time_ms: float = 0.0):
+        """Track when an agent completes execution"""
+        if agent_name not in self.agent_tracking['active_agents']:
+            logger.warning(f"Agent {agent_name} not found in active agents")
+            return
+        
+        agent_info = self.agent_tracking['active_agents'][agent_name]
+        end_time = datetime.now()
+        duration = (end_time - agent_info['start_time']).total_seconds()
+        
+        # Update agent metrics
+        agent_info['metrics']['cost'] += cost
+        agent_info['metrics']['tokens'] += tokens
+        agent_info['metrics']['calls'] += 1
+        
+        # Calculate average response time
+        current_avg = agent_info['metrics']['avg_response_time']
+        call_count = agent_info['metrics']['calls']
+        agent_info['metrics']['avg_response_time'] = (
+            (current_avg * (call_count - 1) + response_time_ms) / call_count
+        )
+        
+        # Update model usage statistics
+        model = agent_info['model']
+        self.agent_tracking['model_usage'][model]['count'] += 1
+        self.agent_tracking['model_usage'][model]['total_cost'] += cost
+        self.agent_tracking['model_usage'][model]['total_tokens'] += tokens
+        
+        # Add to history
+        self.agent_tracking['agent_history'].append({
+            'agent_name': agent_name,
+            'model': model,
+            'task_type': agent_info.get('task_type'),
+            'start_time': agent_info['start_time'].isoformat(),
+            'end_time': end_time.isoformat(),
+            'duration_seconds': duration,
+            'cost': cost,
+            'tokens': tokens,
+            'response_time_ms': response_time_ms
+        })
+        
+        # Remove from active agents
+        del self.agent_tracking['active_agents'][agent_name]
+        
+        logger.info(f"✅ Agent completed: {agent_name} (duration: {duration:.1f}s, cost: ${cost:.4f})")
+    
+    def track_model_usage(self, model: str, cost: float, tokens: int):
+        """Track model usage for non-agent calls"""
+        self.agent_tracking['model_usage'][model]['count'] += 1
+        self.agent_tracking['model_usage'][model]['total_cost'] += cost
+        self.agent_tracking['model_usage'][model]['total_tokens'] += tokens
+        
+        logger.debug(f"📊 Model usage: {model} (+${cost:.4f}, +{tokens} tokens)")
+    
+    def get_agent_summary(self) -> Dict[str, Any]:
+        """Get comprehensive agent tracking summary"""
+        total_agents = len(self.agent_tracking['agent_history'])
+        active_agents = len(self.agent_tracking['active_agents'])
+        
+        # Model usage summary
+        model_summary = {}
+        for model, stats in self.agent_tracking['model_usage'].items():
+            model_summary[model] = {
+                'usage_count': stats['count'],
+                'total_cost': stats['total_cost'],
+                'total_tokens': stats['total_tokens'],
+                'avg_cost_per_call': stats['total_cost'] / max(stats['count'], 1),
+                'avg_tokens_per_call': stats['total_tokens'] / max(stats['count'], 1)
+            }
+        
+        # Agent performance summary
+        agent_summary = {}
+        for agent_exec in self.agent_tracking['agent_history']:
+            agent_name = agent_exec['agent_name']
+            if agent_name not in agent_summary:
+                agent_summary[agent_name] = {
+                    'model': agent_exec['model'],
+                    'executions': 0,
+                    'total_cost': 0.0,
+                    'total_tokens': 0,
+                    'total_duration': 0.0,
+                    'avg_response_time': 0.0
+                }
+            
+            stats = agent_summary[agent_name]
+            stats['executions'] += 1
+            stats['total_cost'] += agent_exec.get('cost', 0.0)
+            stats['total_tokens'] += agent_exec.get('tokens', 0)
+            stats['total_duration'] += agent_exec.get('duration_seconds', 0.0)
+            
+            # Calculate average response time
+            current_avg = stats['avg_response_time']
+            count = stats['executions']
+            new_time = agent_exec.get('response_time_ms', 0.0)
+            stats['avg_response_time'] = (current_avg * (count - 1) + new_time) / count
+        
+        return {
+            'total_agent_executions': total_agents,
+            'active_agents': active_agents,
+            'model_usage': model_summary,
+            'agent_performance': agent_summary,
+            'execution_timeline': self.agent_tracking['agent_history'][-20:]  # Last 20 executions
+        }
+    
+    def get_model_usage_report(self) -> str:
+        """Get a formatted model usage report"""
+        report = ["📊 MODEL USAGE REPORT", "=" * 50]
+        
+        if not self.agent_tracking['model_usage']:
+            report.append("No model usage tracked yet.")
+            return "\n".join(report)
+        
+        # Sort models by usage count
+        sorted_models = sorted(
+            self.agent_tracking['model_usage'].items(),
+            key=lambda x: x[1]['count'],
+            reverse=True
+        )
+        
+        for model, stats in sorted_models:
+            report.append(f"\n🤖 {model}:")
+            report.append(f"   Calls: {stats['count']}")
+            report.append(f"   Total Cost: ${stats['total_cost']:.4f}")
+            report.append(f"   Total Tokens: {stats['total_tokens']:,}")
+            report.append(f"   Avg Cost/Call: ${stats['total_cost']/max(stats['count'], 1):.4f}")
+            report.append(f"   Avg Tokens/Call: {stats['total_tokens']/max(stats['count'], 1):.0f}")
+        
+        return "\n".join(report)
+    
     def _save_monitoring_data(self, output_file: str = None):
         """Save monitoring data to file"""
         if not output_file:
@@ -704,6 +860,7 @@ class ResourceMonitor:
             'performance_profiles': self.get_performance_profiles(),
             'recent_alerts': self.get_recent_alerts(),
             'realtime_stats': self.realtime_stats,
+            'agent_tracking': self.get_agent_summary(),
             'config': self.config,
             'export_timestamp': datetime.now().isoformat()
         }
@@ -741,4 +898,29 @@ def track_task_completion(task_name: str, task_id: str, **kwargs):
 def track_optimization(optimization_type: str, **kwargs):
     """Track optimization"""
     monitor = get_monitor()
-    return monitor.track_optimization(optimization_type, **kwargs) 
+    return monitor.track_optimization(optimization_type, **kwargs)
+
+def track_agent_start(agent_name: str, model: str, task_type: str = None):
+    """Track agent start"""
+    monitor = get_monitor()
+    return monitor.track_agent_start(agent_name, model, task_type)
+
+def track_agent_completion(agent_name: str, **kwargs):
+    """Track agent completion"""
+    monitor = get_monitor()
+    return monitor.track_agent_completion(agent_name, **kwargs)
+
+def track_model_usage(model: str, cost: float, tokens: int):
+    """Track model usage"""
+    monitor = get_monitor()
+    return monitor.track_model_usage(model, cost, tokens)
+
+def get_agent_summary():
+    """Get agent tracking summary"""
+    monitor = get_monitor()
+    return monitor.get_agent_summary()
+
+def get_model_usage_report():
+    """Get model usage report"""
+    monitor = get_monitor()
+    return monitor.get_model_usage_report() 

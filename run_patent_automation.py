@@ -11,6 +11,7 @@ import shutil
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
+import time
 
 # Load environment variables
 load_dotenv()
@@ -29,7 +30,7 @@ try:
         print("Neither LANGCHAIN_API_KEY nor LANGSMITH_API_KEY is set. LangSmith monitoring will be disabled.")
     else:
         # Configure LangSmith
-        os.environ['LANGCHAIN_TRACING_V2'] = 'true'
+        os.environ['LANGCHAIN_TRACING_V2'] = 'trclue'
         os.environ['LANGCHAIN_ENDPOINT'] = 'https://api.smith.langchain.com'
         os.environ['LANGCHAIN_PROJECT'] = 'patent-pipeline'
         os.environ['LANGCHAIN_API_KEY'] = api_key  # Ensure it's set for LangSmith
@@ -60,6 +61,18 @@ from crewai import Crew, Agent, Task
 # Import patent data and retry manager
 from lib.patent_data import PATENT_IDEAS, PATENT_CONFIG
 from lib.retry_manager import RetryManager
+
+# Import LLM classes
+from langchain_openai import ChatOpenAI
+try:
+    from langchain_anthropic import ChatAnthropic
+except ImportError:
+    ChatAnthropic = None
+try:
+    from langchain_community.llms import LiteLLM
+except ImportError:
+    logger.warning("LiteLLM not available - DeepSeek and Grok models will fall back to OpenAI")
+    LiteLLM = None
 from lib.incremental_processor import IncrementalProcessor
 from lib.langsmith_utils import langsmith_manager, trace_function, log_agent_execution
 from lib.resource_manager import initialize_monitoring, cleanup_monitoring, progress_tracker, error_handler, get_status_report
@@ -73,6 +86,17 @@ from lib.dynamic_optimization_integration import (
     OptimizedTaskExecution
 )
 
+# Import agent tracking system
+try:
+    from scripts.agent_model_tracker import setup_comprehensive_tracking, get_tracker
+    TRACKING_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"⚠️  Agent tracking not available: {e}")
+    TRACKING_AVAILABLE = False
+
+# Import retry wrapper
+from tools.retry_wrapper import create_retry_wrapped_tools
+
 @trace_function(name="validate_environment")
 def validate_environment():
     """Validate that required environment variables are set"""
@@ -82,6 +106,27 @@ def validate_environment():
     
     logger.info("✅ Environment validation passed")
     return True
+
+def initialize_agent_tracking():
+    """Initialize comprehensive agent tracking system"""
+    if not TRACKING_AVAILABLE:
+        logger.info("📊 Agent tracking not available - continuing without tracking")
+        return None
+    
+    try:
+        # Setup comprehensive tracking
+        setup_comprehensive_tracking()
+        tracker = get_tracker()
+        
+        logger.info("✅ Agent tracking system initialized successfully")
+        logger.info("📊 Will track all agent interactions and model usage")
+        
+        return tracker
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize agent tracking: {e}")
+        logger.info("📊 Continuing without agent tracking")
+        return None
 
 def clear_vector_cache():
     """Clear vector cache to prevent context size growth"""
@@ -135,9 +180,9 @@ def setup_output_directories():
     base_dir = Path("output")
     base_dir.mkdir(exist_ok=True)
     
-    for tier in ['tier_1', 'tier_2', 'tier_3', 'tier_4']:
-        tier_dir = base_dir / tier
-        tier_dir.mkdir(exist_ok=True)
+    for phase in ['phase_1', 'phase_2', 'phase_3']:
+        phase_dir = base_dir / phase
+        phase_dir.mkdir(exist_ok=True)
     
     logger.info("✅ Output directories created")
 
@@ -147,13 +192,24 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
     with open('config/agents.yaml', 'r') as f:
         agents_config = yaml.safe_load(f)
     
+    # Initialize retry manager for tool wrapping
+    retry_manager = RetryManager(
+        max_retries=3,
+        base_delay=2.0,
+        max_delay=30.0,
+        backoff_factor=2.0
+    )
+    
     agents = {}
     for agent_name, agent_config in agents_config.items():
         # Only process dicts with a 'role' key (skip tool_mapping and comments)
         if not isinstance(agent_config, dict) or 'role' not in agent_config:
             continue
+            
         # Create tool instances for this agent
         tools = []
+        raw_tools = {}  # Store tools before wrapping
+        
         for tool_name in agent_config.get('tools', []):
             # Import and instantiate tools with parameter correction
             if tool_name == 'real_patent_search_tool':
@@ -162,85 +218,150 @@ def create_agents_from_yaml() -> Dict[str, Agent]:
                 lens_api_key = os.getenv('LENS_API_KEY')
                 epo_api_key = os.getenv('EPO_API_KEY')
                 tool_instance = RealPatentSearchTool(lens_api_key=lens_api_key, epo_api_key=epo_api_key)
-                tools.append(wrap_tool_with_parameter_correction('real_patent_search_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('real_patent_search_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'arxiv_search_tool':
                 from tools.arxiv_search import ArxivSearchTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ArxivSearchTool()
-                tools.append(wrap_tool_with_parameter_correction('arxiv_search_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('arxiv_search_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'consolidated_risk_assessment_tool':
                 from tools.consolidated_risk_assessment import ConsolidatedRiskAssessmentTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ConsolidatedRiskAssessmentTool()
-                tools.append(wrap_tool_with_parameter_correction('consolidated_risk_assessment_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('consolidated_risk_assessment_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'vector_based_overlap_analysis_tool':
                 from tools.vector_based_overlap_analysis import VectorBasedOverlapAnalysisTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = VectorBasedOverlapAnalysisTool()
-                tools.append(wrap_tool_with_parameter_correction('vector_based_overlap_analysis_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('vector_based_overlap_analysis_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'patent_document_tool':
                 from tools.patent_document import PatentDocumentTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = PatentDocumentTool()
-                tools.append(wrap_tool_with_parameter_correction('patent_document_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('patent_document_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
+            elif tool_name == 'patent_integration_tool':
+                from tools.patent_integration_tool import PatentIntegrationTool
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = PatentIntegrationTool()
+                wrapped_tool = wrap_tool_with_parameter_correction('patent_integration_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'smart_claim_refinement_tool':
                 from tools.smart_claim_refinement import SmartClaimRefinementTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = SmartClaimRefinementTool()
-                tools.append(wrap_tool_with_parameter_correction('smart_claim_refinement_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('smart_claim_refinement_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'final_review_and_improvement_tool':
                 from tools.final_review_and_improvement import FinalReviewAndImprovementTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = FinalReviewAndImprovementTool()
-                tools.append(wrap_tool_with_parameter_correction('final_review_and_improvement_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('final_review_and_improvement_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'provisional_cover_sheet_tool':
                 from tools.provisional_cover_sheet import ProvisionalCoverSheetTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ProvisionalCoverSheetTool()
-                tools.append(wrap_tool_with_parameter_correction('provisional_cover_sheet_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('provisional_cover_sheet_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'patent_valuation_tool':
                 from tools.patent_valuation import PatentValuationTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = PatentValuationTool()
-                tools.append(wrap_tool_with_parameter_correction('patent_valuation_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('patent_valuation_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'colab_demo_generator_tool':
                 from tools.colab_demo_generator import ColabDemoGeneratorTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ColabDemoGeneratorTool()
-                tools.append(wrap_tool_with_parameter_correction('colab_demo_generator_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('colab_demo_generator_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'architecture_diagram_tool':
                 from tools.architecture_diagram import ArchitectureDiagramTool
                 from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
                 tool_instance = ArchitectureDiagramTool()
-                tools.append(wrap_tool_with_parameter_correction('architecture_diagram_tool', tool_instance))
+                wrapped_tool = wrap_tool_with_parameter_correction('architecture_diagram_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
+            elif tool_name == 'claim_recommendations_tool':
+                from tools.claim_recommendations import ClaimRecommendationsTool
+                from tools.parameter_correction_wrapper import wrap_tool_with_parameter_correction
+                tool_instance = ClaimRecommendationsTool()
+                wrapped_tool = wrap_tool_with_parameter_correction('claim_recommendations_tool', tool_instance)
+                raw_tools[tool_name] = wrapped_tool
             elif tool_name == 'quality_validation_tool':
                 from tools.quality_validation_tool import quality_validation_tool
-                tools.append(quality_validation_tool)
+                raw_tools[tool_name] = quality_validation_tool
             elif tool_name == 'workflow_validation_tool':
                 from tools.quality_validation_tool import workflow_validation_tool
-                tools.append(workflow_validation_tool)
+                raw_tools[tool_name] = workflow_validation_tool
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
                 continue
+        
+        # Apply retry wrapper to all tools for this agent
+        retry_wrapped_tools = create_retry_wrapped_tools(raw_tools, retry_manager)
+        tools = list(retry_wrapped_tools.values())
+        
+        # Create LLM from config
+        llm_config = agent_config.get('llm_config', {
+            "config_list": [{"model": "gpt-4o"}],
+            "temperature": 0.7
+        })
+        
+        # Extract model and temperature from config
+        model_name = "gpt-4o"  # default
+        temperature = 0.7  # default
+        
+        if 'config_list' in llm_config and llm_config['config_list']:
+            model_name = llm_config['config_list'][0].get('model', 'gpt-4o')
+        if 'temperature' in llm_config:
+            temperature = llm_config['temperature']
+        
+        # Create appropriate LLM based on model name
+        if model_name.startswith('gpt-'):
+            llm = ChatOpenAI(model=model_name, temperature=temperature)
+        elif model_name.startswith('claude-'):
+            if ChatAnthropic is not None:
+                llm = ChatAnthropic(model=model_name, temperature=temperature)
+            else:
+                logger.warning(f"ChatAnthropic not available for model {model_name}, falling back to OpenAI")
+                llm = ChatOpenAI(model="gpt-4o", temperature=temperature)
+        elif model_name.startswith('deepseek-') or model_name.startswith('grok-'):
+            # DeepSeek and Grok use LiteLLM
+            if LiteLLM is not None:
+                llm = LiteLLM(model=model_name, temperature=temperature)
+            else:
+                logger.warning(f"LiteLLM not available for model {model_name}, falling back to OpenAI")
+                llm = ChatOpenAI(model="gpt-4o", temperature=temperature)
+        else:
+            # Default to OpenAI
+            llm = ChatOpenAI(model=model_name, temperature=temperature)
+        
+        logger.info(f"Created LLM for agent '{agent_name}': {model_name} (temp: {temperature})")
+        
         # Create agent
         agent = Agent(
             role=agent_config['role'],
             goal=agent_config['goal'],
             backstory=agent_config['backstory'],
             tools=tools,
-            verbose=agent_config.get('verbose', True),
+            verbose=agent_config.get('verbose', False),
             max_iter=agent_config.get('max_iter', 3),
             memory=agent_config.get('memory', True),
-            llm_config=agent_config.get('llm_config', {
-                "config_list": [{"model": "gpt-4o"}],
-                "temperature": 0.7
-            })
+            llm=llm
         )
         agents[agent_name] = agent
+        
+        logger.info(f"Created agent '{agent_name}' with {len(tools)} retry-wrapped tools")
+    
     return agents
 
 @trace_function(name="create_patent_tasks")
-def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, Agent]) -> List[Task]:
+def create_patent_tasks(patent_ideas: List[Dict], phase: str, agents: Dict[str, Agent]) -> List[Task]:
     """Create tasks for patent ideas using YAML configuration"""
     
     # Load task configuration
@@ -264,12 +385,23 @@ def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, A
             # Create tasks for this patent
             for task_name, task_config in tasks_config.items():
                 try:
-                    # Skip task_generation config entry
-                    if task_name == 'task_generation':
+                    # Skip metadata sections and task_generation config entry
+                    metadata_sections = ['task_dependencies', 'quality_gates', 'resource_management', 
+                                       'error_recovery_strategies', 'task_priority', 'task_generation']
+                    if task_name in metadata_sections:
                         continue
                     
+                    # Skip colab demo tasks for patents without build requirements
+                    if task_name.startswith('colab_demo'):
+                        build_requirements = patent_idea.get('build_requirements', [])
+                        if not build_requirements or build_requirements == ["Already built and tested"]:
+                            logger.info(f"Skipping colab demo task {task_name} for patent {patent_id} (no build requirements or already built)")
+                            continue
+                        else:
+                            logger.info(f"Enabling colab demo task {task_name} for patent {patent_id} (build requirements: {build_requirements})")
+                    
                     # Format task description with patent data
-                    description = _format_task_description(task_config['description'], patent_idea, tier)
+                    description = _format_task_description(task_config['description'], patent_idea, phase)
                     
                     # Get the agent for this task
                     agent_name = task_config['agent']
@@ -277,15 +409,35 @@ def create_patent_tasks(patent_ideas: List[Dict], tier: str, agents: Dict[str, A
                         logger.warning(f"Agent {agent_name} not found for task {task_name}")
                         continue
                     
-                    # Create task
-                    task = Task(
-                        description=description,
-                        expected_output=task_config['expected_output'],
-                        output_file=task_config['output_file'].format(
-                            tier=tier, id=clean_patent_id(patent_idea['id'])
+                    # Get pydantic output model if specified
+                    output_pydantic = None
+                    if 'output_pydantic' in task_config:
+                        pydantic_path = task_config['output_pydantic']
+                        try:
+                            # Import the pydantic model dynamically
+                            module_path, class_name = pydantic_path.rsplit('.', 1)
+                            module = __import__(module_path, fromlist=[class_name])
+                            output_pydantic = getattr(module, class_name)
+                            logger.info(f"Loaded pydantic output model: {pydantic_path}")
+                        except Exception as e:
+                            logger.warning(f"Could not load pydantic output model {pydantic_path}: {e}")
+                            logger.warning("Continuing without pydantic validation for this task")
+                    
+                    # Create task with pydantic output model (if available)
+                    task_kwargs = {
+                        'description': description,
+                        'expected_output': task_config['expected_output'],
+                        'output_file': task_config['output_file'].format(
+                            phase=phase, id=clean_patent_id(patent_idea['id'])
                         ),
-                        agent=agents[agent_name]
-                    )
+                        'agent': agents[agent_name]
+                    }
+                    
+                    # Only add output_pydantic if it was successfully loaded
+                    if output_pydantic is not None:
+                        task_kwargs['output_pydantic'] = output_pydantic
+                    
+                    task = Task(**task_kwargs)
                     
                     tasks.append(task)
                     logger.info(f"Created task {task_name} for patent {patent_id}")
@@ -306,10 +458,10 @@ def clean_patent_id(patent_id: str) -> str:
     """Return patent ID as-is (no prefix removal)"""
     return patent_id
 
-def read_refined_claims(patent_id: str, tier: str) -> List[str]:
+def read_refined_claims(patent_id: str, phase: str) -> List[str]:
     """Read refined claims from the refined claims file if it exists"""
     cleaned_id = clean_patent_id(patent_id)
-    refined_claims_file = f"output/{tier}/{cleaned_id}_refined_claims.md"
+    refined_claims_file = f"output/{phase}/{cleaned_id}_refined_claims.md"
     
     if not os.path.exists(refined_claims_file):
         return []
@@ -347,40 +499,127 @@ def read_refined_claims(patent_id: str, tier: str) -> List[str]:
         logger.warning(f"Could not read refined claims for {patent_id}: {e}")
         return []
 
-def _format_task_description(template: str, patent_idea: Dict, tier: str) -> str:
+def _format_task_description(template: str, patent_idea: Dict, phase: str) -> str:
     """Format task description with patent data"""
     
     # Read refined claims if they exist
     patent_id = patent_idea.get('id', 'UNKNOWN')
-    refined_claims = read_refined_claims(patent_id, tier)
+    refined_claims = read_refined_claims(patent_id, phase)
     claims_to_use = refined_claims if refined_claims else patent_idea.get('key_claims', ['No claims provided'])
     claims_source = "refined claims" if refined_claims else "original claims"
     
+    # Helper function to convert mixed data types to strings
+    def format_list_items(items):
+        """Convert mixed list items (strings and dicts) to formatted strings"""
+        if not items:
+            return []
+        
+        formatted_items = []
+        for item in items:
+            if isinstance(item, str):
+                formatted_items.append(item)
+            elif isinstance(item, dict):
+                # Convert dict to formatted string
+                for key, value in item.items():
+                    formatted_items.append(f"{key}: {value}")
+            else:
+                formatted_items.append(str(item))
+        
+        return formatted_items
+    
+    # Format claims list (handling mixed data types)
+    formatted_claims = format_list_items(claims_to_use)
+    claims_list = '\n'.join(f'- {claim}' for claim in formatted_claims)
+    
+    # Format technical features (handling mixed data types)
+    technical_features_raw = patent_idea.get('technical_features', [])
+    formatted_features = format_list_items(technical_features_raw)
+    technical_features_str = ', '.join(formatted_features)
+    
+    # Format market applications (handling mixed data types)
+    market_applications_raw = patent_idea.get('market_applications', ['AI optimization'])
+    formatted_applications = format_list_items(market_applications_raw)
+    market_applications_str = ', '.join(formatted_applications)
+    
+    # Format evidence (handling mixed data types)
+    evidence_raw = patent_idea.get('evidence', [])
+    formatted_evidence = format_list_items(evidence_raw)
+    evidence_str = ', '.join(formatted_evidence)
+    
+    # Format regulatory_compliance (handling mixed data types)
+    regulatory_compliance_raw = patent_idea.get('regulatory_compliance', [])
+    if isinstance(regulatory_compliance_raw, str):
+        regulatory_compliance_str = regulatory_compliance_raw
+    else:
+        formatted_regulatory_compliance = format_list_items(regulatory_compliance_raw)
+        regulatory_compliance_str = ', '.join(formatted_regulatory_compliance)
+    
+    # Format build_requirements (handling mixed data types)
+    build_requirements_raw = patent_idea.get('build_requirements', [])
+    formatted_build_requirements = format_list_items(build_requirements_raw)
+    build_requirements_str = ', '.join(formatted_build_requirements)
+    
     # Variable mapping for template substitution with safe defaults
+    # NOTE: These are the whitelisted fields that can appear in patent documents
     variables = {
         'title': patent_idea.get('title', 'Untitled Patent'),
-        'id': patent_idea.get('id', 'UNKNOWN'),
         'description': patent_idea.get('description', 'No description provided'),
-        'claims_list': '\n'.join(f'- {claim}' for claim in claims_to_use),
-        'value_estimate': patent_idea.get('value_estimate', '$2-15M'),
-        'market_applications': ', '.join(patent_idea.get('market_applications', ['AI optimization'])),
-        'technical_features': ', '.join(patent_idea.get('technical_features', [])),
+        'key_claims': claims_list,
+        'technical_features': technical_features_str,
+        'evidence': evidence_str,
+        'market_applications': market_applications_str,
         'differentiation': patent_idea.get('differentiation', 'TBD'),
-        'tier': tier,
-        'tier_name': PATENT_CONFIG['portfolio_tiers'].get(tier, {}).get('name', 'Unknown Tier'),
+        'regulatory_compliance': regulatory_compliance_str,
+        'build_requirements': build_requirements_str,
         'description_length': len(patent_idea.get('description', '').split()),
-        'claims_count': len(claims_to_use)
+        'claims_count': len(formatted_claims),
+        'key_innovations': ', '.join(format_list_items(patent_idea.get('key_innovations', []))),
+        'codebase_references': ', '.join(format_list_items(patent_idea.get('codebase_references', []))),
+        'filing_requirements': ', '.join(format_list_items(patent_idea.get('filing_requirements', []))),
+        'alternative_embodiments': ', '.join(format_list_items(patent_idea.get('alternative_embodiments', []))),
+        'dependencies': ', '.join(format_list_items(patent_idea.get('dependencies', []))),
+        'implementation_complexity': patent_idea.get('implementation_complexity', 'Medium'),
+        'prior_art_risk': patent_idea.get('prior_art_risk', 'Medium'),
+        'disclaimers': ', '.join(format_list_items(patent_idea.get('disclaimers', []))),
+        'business_context': ', '.join(format_list_items(patent_idea.get('business_context', []))),
+        'enterprise_features': ', '.join(format_list_items(patent_idea.get('enterprise_features', [])))
     }
+    
+    # Add essential system fields that are needed for task templates but should NOT appear in patent documents
+    # These are internal processing fields
+    phase_info = PATENT_CONFIG['portfolio_tiers'].get(phase, {})
+    system_variables = {
+        'id': patent_idea.get('id', 'UNKNOWN'),
+        'phase': phase,
+        'phase_name': phase_info.get('name', f'Phase {phase}'),
+        'value_estimate': patent_idea.get('value_estimate', '$2-15M')
+    }
+    
+    # Combine both sets of variables
+    all_variables = {**variables, **system_variables}
     
     # Replace variables in template
     formatted_description = template
-    for var_name, value in variables.items():
+    for var_name, value in all_variables.items():
         formatted_description = formatted_description.replace(f'{{{var_name}}}', str(value))
     
     return formatted_description
 
 @trace_function(name="run_patent_automation")
-def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tier: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False, parallel_execution: bool = False, max_workers: int = 4, no_validation: bool = False, validation_level: str = "standard", enable_optimization: bool = True, optimization_level: str = "balanced"):
+def run_patent_automation(phase_filter: Optional[str] = None, max_patents_per_phase: Optional[int] = None, clear_cache: bool = True, incremental: bool = True, force_regenerate: bool = False, parallel_execution: bool = False, max_workers: int = 4, no_validation: bool = False, validation_level: str = "standard", enable_optimization: bool = True, optimization_level: str = "balanced"):
+    
+    # Initialize performance monitoring
+    start_time = time.time()
+    performance_metrics = {
+        "total_patents_processed": 0,
+        "successful_tasks": 0,
+        "failed_tasks": 0,
+        "total_execution_time": 0,
+        "resource_usage": {},
+        "quality_scores": {},
+        "bottlenecks": [],
+        "optimization_suggestions": []
+    }
     """Run patent automation for specified tiers using CrewAI YAML configuration"""
     
     logger.info("🤖 Starting Innovation Analysis System with CrewAI Native YAML Configuration")
@@ -404,6 +643,9 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     # Validate environment
     if not validate_environment():
         return False
+    
+    # Initialize agent tracking
+    tracker = initialize_agent_tracking()
     
     # Initialize dynamic optimization coordinator
     optimization_coordinator = None
@@ -466,15 +708,15 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
     logger.info(f"✅ Created {len(agents)} agents")
     
     # Calculate total work for monitoring
-    tiers_to_process = [tier_filter] if tier_filter else ['tier_1']  # Default to Tier 1 only
+    phases_to_process = [phase_filter] if phase_filter else ['phase_1']  # Default to Phase 1 only
     total_patents = 0
     total_tasks = 0
     
-    for tier_key in tiers_to_process:
-        if tier_key in PATENT_CONFIG['portfolio_tiers']:
-            patent_ideas = PATENT_IDEAS.get(tier_key, [])
-            if max_patents_per_tier:
-                patent_ideas = patent_ideas[:max_patents_per_tier]
+    for phase_key in phases_to_process:
+        if phase_key in PATENT_CONFIG['portfolio_tiers']:
+            patent_ideas = PATENT_IDEAS.get(phase_key, [])
+            if max_patents_per_phase:
+                patent_ideas = patent_ideas[:max_patents_per_phase]
             total_patents += len(patent_ideas)
             # Estimate tasks per patent (rough estimate)
             total_tasks += len(patent_ideas) * 10  # Approximate tasks per patent
@@ -491,32 +733,36 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         from lib.resource_manager import ProgressTracker
         progress_tracker = ProgressTracker(total_patents, total_tasks)
     
-    # Process each tier
+    # Process each phase
     processing_results = {}
     total_patents_processed = 0
     
-    for tier_key in tiers_to_process:
-        if tier_key not in PATENT_CONFIG['portfolio_tiers']:
-            logger.warning(f"Tier {tier_key} not found in configuration")
+    for phase_key in phases_to_process:
+        if phase_key not in PATENT_CONFIG['portfolio_tiers']:
+            logger.warning(f"Phase {phase_key} not found in configuration")
             continue
         
-        tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
-        patent_ideas = PATENT_IDEAS.get(tier_key, [])
+        phase_info = PATENT_CONFIG['portfolio_tiers'][phase_key]
+        patent_ideas = PATENT_IDEAS.get(phase_key, [])
         
-        if max_patents_per_tier:
-            patent_ideas = patent_ideas[:max_patents_per_tier]
+        if max_patents_per_phase:
+            original_count = len(patent_ideas)
+            patent_ideas = patent_ideas[:max_patents_per_phase]
+            logger.info(f"🔢 Applied --max-per-phase {max_patents_per_phase}: Processing {len(patent_ideas)}/{original_count} patents")
+            for i, patent in enumerate(patent_ideas, 1):
+                logger.info(f"   {i}. {patent['id']}: {patent['title']}")
         
         if not patent_ideas:
-            logger.warning(f"No patent ideas defined for {tier_info['name']}")
+            logger.warning(f"No patent ideas defined for {phase_info['name']}")
             continue
         
-        logger.info(f"🎯 Processing {tier_info['name']}")
+        logger.info(f"🎯 Processing {phase_info['name']}")
         logger.info(f"   Count: {len(patent_ideas)} patents")
-        logger.info(f"   Timeline: {tier_info['timeline']}")
+        logger.info(f"   Timeline: {phase_info['timeline']}")
         
         try:
-            # Create tasks for this tier
-            tasks = create_patent_tasks(patent_ideas, tier_key, agents)
+            # Create tasks for this phase
+            tasks = create_patent_tasks(patent_ideas, phase_key, agents)
             
             # Load tasks configuration for incremental processing
             with open('config/tasks.yaml', 'r') as f:
@@ -524,8 +770,8 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             
             # Show incremental processing report
             if incremental:
-                logger.info(f"📊 Analyzing existing assets for {tier_info['name']}...")
-                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, tier_key)
+                logger.info(f"📊 Analyzing existing assets for {phase_info['name']}...")
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, phase_key)
                 
                 # Filter tasks for incremental processing
                 original_task_count = len(tasks)
@@ -538,11 +784,11 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     logger.info(f"🔄 All {original_task_count} tasks will be executed (no existing assets found)")
             
             if not tasks:
-                logger.info(f"⏭️ No tasks to execute for {tier_info['name']} (all assets exist)")
-                processing_results[tier_key] = {
+                logger.info(f"⏭️ No tasks to execute for {phase_info['name']} (all assets exist)")
+                processing_results[phase_key] = {
                     'success': True,
                     'patents_processed': len(patent_ideas),
-                    'tier_info': tier_info,
+                    'phase_info': phase_info,
                     'result': "All assets already exist - no processing needed"
                 }
                 total_patents_processed += len(patent_ideas)
@@ -606,11 +852,11 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                             progress_tracker.complete_task("tier_processing", patent['id'], success=len(failed_tasks) == 0)
                             progress_tracker.complete_patent(patent['id'])
                     
-                    logger.info(f"✅ Successfully processed {tier_info['name']} with parallel execution")
-                    processing_results[tier_key] = {
+                    logger.info(f"✅ Successfully processed {phase_info['name']} with parallel execution")
+                    processing_results[phase_key] = {
                         'success': len(failed_tasks) == 0,
                         'patents_processed': len(patent_ideas),
-                        'tier_info': tier_info,
+                        'phase_info': phase_info,
                         'result': f"Parallel execution completed: {len(successful_tasks)} successful, {len(failed_tasks)} failed",
                         'parallel_stats': {
                             'successful_tasks': len(successful_tasks),
@@ -621,101 +867,101 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                     total_patents_processed += len(patent_ideas)
                     
                 except Exception as e:
-                    logger.error(f"❌ Parallel execution failed for {tier_info['name']}: {e}")
+                    logger.error(f"❌ Parallel execution failed for {phase_info['name']}: {e}")
                     for patent in patent_ideas:
                         if progress_tracker:
                             progress_tracker.complete_task("tier_processing", patent['id'], success=False)
-                    processing_results[tier_key] = {
+                    processing_results[phase_key] = {
                         'success': False,
                         'error': str(e),
-                        'tier_info': tier_info
+                        'phase_info': phase_info
                     }
             else:
                 # Use traditional sequential execution
                 logger.info("🔄 Using sequential execution (traditional CrewAI)")
-                
-                # Create crew with agents and tasks
-                crew = Crew(
-                    agents=list(agents.values()),
-                    tasks=tasks,
-                    process="sequential",
-                    verbose=True,
-                    memory=True,
-                    max_rpm=30
-                )
-                
-                # Track progress for each patent in this tier
+            
+            # Create crew with agents and tasks
+            crew = Crew(
+                agents=list(agents.values()),
+                tasks=tasks,
+                process="sequential",
+                verbose=False,
+                memory=True,
+                max_rpm=30
+            )
+            
+            # Track progress for each patent in this tier
+            for patent in patent_ideas:
+                if progress_tracker:
+                    progress_tracker.start_task("tier_processing", patent['id'])
+            
+            # Run the crew with error handling
+            try:
+                result = crew.kickoff()
+                # Mark all patents in this tier as completed
                 for patent in patent_ideas:
                     if progress_tracker:
-                        progress_tracker.start_task("tier_processing", patent['id'])
+                        progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                        progress_tracker.complete_patent(patent['id'])
                 
-                # Run the crew with error handling
-                try:
-                    result = crew.kickoff()
-                    # Mark all patents in this tier as completed
-                    for patent in patent_ideas:
-                        if progress_tracker:
-                            progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                            progress_tracker.complete_patent(patent['id'])
-                
-                    logger.info(f"✅ Successfully processed {tier_info['name']}")
-                    processing_results[tier_key] = {
-                        'success': True,
-                        'patents_processed': len(patent_ideas),
-                        'tier_info': tier_info,
-                        'result': result
-                    }
-                    total_patents_processed += len(patent_ideas)
-                except Exception as e:
-                    # Handle crew execution errors
-                    if error_handler.handle_error(e, "crew_execution", tier_key):
-                        logger.info(f"🔄 Retrying crew execution for {tier_info['name']}")
-                        try:
-                            result = crew.kickoff()
-                            for patent in patent_ideas:
-                                if progress_tracker:
-                                    progress_tracker.complete_task("tier_processing", patent['id'], success=True)
-                                    progress_tracker.complete_patent(patent['id'])
-                            
-                            logger.info(f"✅ Successfully processed {tier_info['name']} on retry")
-                            processing_results[tier_key] = {
-                                'success': True,
-                                'patents_processed': len(patent_ideas),
-                                'tier_info': tier_info,
-                                'result': result
-                            }
-                            total_patents_processed += len(patent_ideas)
-                        except Exception as retry_error:
-                            logger.error(f"❌ Crew execution failed on retry for {tier_info['name']}: {retry_error}")
-                            for patent in patent_ideas:
-                                if progress_tracker:
-                                    progress_tracker.complete_task("tier_processing", patent['id'], success=False)
-                            processing_results[tier_key] = {
-                                'success': False,
-                                'error': str(retry_error),
-                                'tier_info': tier_info
-                            }
-                    else:
-                        logger.error(f"❌ Crew execution failed for {tier_info['name']}: {e}")
+                logger.info(f"✅ Successfully processed {phase_info['name']}")
+                processing_results[phase_key] = {
+                    'success': True,
+                    'patents_processed': len(patent_ideas),
+                    'phase_info': phase_info,
+                    'result': result
+                }
+                total_patents_processed += len(patent_ideas)
+            except Exception as e:
+                # Handle crew execution errors
+                if error_handler.handle_error(e, "crew_execution", phase_key):
+                    logger.info(f"🔄 Retrying crew execution for {phase_info['name']}")
+                    try:
+                        result = crew.kickoff()
+                        for patent in patent_ideas:
+                            if progress_tracker:
+                                progress_tracker.complete_task("tier_processing", patent['id'], success=True)
+                                progress_tracker.complete_patent(patent['id'])
+                        
+                        logger.info(f"✅ Successfully processed {phase_info['name']} on retry")
+                        processing_results[phase_key] = {
+                            'success': True,
+                            'patents_processed': len(patent_ideas),
+                            'phase_info': phase_info,
+                            'result': result
+                        }
+                        total_patents_processed += len(patent_ideas)
+                    except Exception as retry_error:
+                        logger.error(f"❌ Crew execution failed on retry for {phase_info['name']}: {retry_error}")
                         for patent in patent_ideas:
                             if progress_tracker:
                                 progress_tracker.complete_task("tier_processing", patent['id'], success=False)
-                        processing_results[tier_key] = {
+                        processing_results[phase_key] = {
                             'success': False,
-                            'error': str(e),
-                            'tier_info': tier_info
+                            'error': str(retry_error),
+                            'phase_info': phase_info
                         }
+                else:
+                    logger.error(f"❌ Crew execution failed for {phase_info['name']}: {e}")
+                    for patent in patent_ideas:
+                        if progress_tracker:
+                            progress_tracker.complete_task("tier_processing", patent['id'], success=False)
+                    processing_results[phase_key] = {
+                        'success': False,
+                        'error': str(e),
+                        'phase_info': phase_info
+                    }
                 
         except Exception as e:
-            logger.error(f"❌ Error processing {tier_info['name']}: {e}")
-            if error_handler.handle_error(e, "tier_setup", tier_key):
-                logger.info(f"🔄 Retrying tier setup for {tier_info['name']}")
+            logger.error(f"❌ Error processing {phase_info['name']}: {e}")
+            if error_handler.handle_error(e, "phase_setup", phase_key):
+                logger.info(f"🔄 Retrying phase setup for {phase_info['name']}")
                 # Could implement retry logic here if needed
             else:
-                processing_results[tier_key] = {
+                processing_results[phase_key] = {
                     'success': False,
                     'error': str(e),
-                    'tier_info': tier_info
+                    'phase_info': phase_info
                 }
     
     # Quality Validation Phase (can be skipped with --no-validation)
@@ -728,21 +974,21 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         try:
             from lib.validation_pipeline import validation_pipeline
             
-            for tier_key, result in processing_results.items():
+            for phase_key, result in processing_results.items():
                 if result['success'] and 'patents_processed' in result:
-                    tier_info = result['tier_info']
-                    patent_ideas = PATENT_IDEAS.get(tier_key, [])
-                    if max_patents_per_tier:
-                        patent_ideas = patent_ideas[:max_patents_per_tier]
+                    phase_info = result['phase_info']
+                    patent_ideas = PATENT_IDEAS.get(phase_key, [])
+                    if max_patents_per_phase:
+                        patent_ideas = patent_ideas[:max_patents_per_phase]
                     
-                    logger.info(f"🔍 Validating outputs for {tier_info['name']}...")
+                    logger.info(f"🔍 Validating outputs for {phase_info['name']}...")
                     
                     # Validate each patent's outputs
-                    tier_validation_results = {}
+                    phase_validation_results = {}
                     for patent in patent_ideas:
                         try:
-                            patent_validation = validation_pipeline.validate_complete_workflow(tier_key, patent['id'])
-                            tier_validation_results[patent['id']] = patent_validation
+                            patent_validation = validation_pipeline.validate_complete_workflow(phase_key, patent['id'])
+                            phase_validation_results[patent['id']] = patent_validation
                             
                             # Log validation status
                             status = patent_validation['overall_status']
@@ -770,20 +1016,20 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
                                 'error': str(e)
                             }
                     
-                    validation_results[tier_key] = tier_validation_results
+                    validation_results[phase_key] = phase_validation_results
                     
-                    # Tier-level summary
-                    total_patents = len(tier_validation_results)
-                    passed_patents = len([v for v in tier_validation_results.values() 
+                    # Phase-level summary
+                    total_patents = len(phase_validation_results)
+                    passed_patents = len([v for v in phase_validation_results.values() 
                                         if v.get('overall_status') == 'PASSED'])
-                    partial_patents = len([v for v in tier_validation_results.values() 
+                    partial_patents = len([v for v in phase_validation_results.values() 
                                          if v.get('overall_status') == 'PARTIAL'])
-                    failed_patents = len([v for v in tier_validation_results.values() 
+                    failed_patents = len([v for v in phase_validation_results.values() 
                                         if v.get('overall_status') in ['FAILED', 'ERROR']])
                     
-                    avg_quality = sum(v.get('quality_score', 0) for v in tier_validation_results.values()) / total_patents if total_patents > 0 else 0
+                    avg_quality = sum(v.get('quality_score', 0) for v in phase_validation_results.values()) / total_patents if total_patents > 0 else 0
                     
-                    logger.info(f"📊 {tier_info['name']} Quality Summary:")
+                    logger.info(f"📊 {phase_info['name']} Quality Summary:")
                     logger.info(f"   ✅ Passed: {passed_patents}/{total_patents} ({passed_patents/total_patents*100:.1f}%)")
                     logger.info(f"   ⚠️  Partial: {partial_patents}/{total_patents}")
                     logger.info(f"   ❌ Failed: {failed_patents}/{total_patents}")
@@ -829,27 +1075,28 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
             logger.warning("⚠️  Manual quality review recommended")
     else:
         logger.info("⚠️  Quality validation phase skipped (--no-validation flag)")
-
+    
     # Summary
     logger.info("=" * 80)
     logger.info("📊 PROCESSING SUMMARY")
     logger.info("=" * 80)
     
     successful_tiers = 0
+    successful_phases = 0
     total_patents = 0
     
-    for tier_key, result in processing_results.items():
-        tier_name = result['tier_info']['name']
+    for phase_key, result in processing_results.items():
+        phase_name = result['phase_info']['name']
         if result['success']:
-            successful_tiers += 1
+            successful_phases += 1
             patents_processed = result['patents_processed']
             total_patents += patents_processed
-            logger.info(f"✅ {tier_name}: {patents_processed} patents processed")
+            logger.info(f"✅ {phase_name}: {patents_processed} patents processed")
         else:
-            logger.error(f"❌ {tier_name}: Failed - {result.get('error', 'Unknown error')}")
+            logger.error(f"❌ {phase_name}: Failed - {result.get('error', 'Unknown error')}")
     
     logger.info(f"📈 Total Patents Processed: {total_patents}")
-    logger.info(f"🎯 Successful Tiers: {successful_tiers}/{len(processing_results)}")
+    logger.info(f"🎯 Successful Phases: {successful_phases}/{len(processing_results)}")
     
     # Collect and aggregate real valuation results
     if total_patents > 0:
@@ -860,12 +1107,12 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         
         # Collect valuation data from all output files
         valuation_files = []
-        for tier_key in processing_results.keys():
-            if tier_key in PATENT_IDEAS:
-                patent_ideas = PATENT_IDEAS[tier_key]
+        for phase_key in processing_results.keys():
+            if phase_key in PATENT_IDEAS:
+                patent_ideas = PATENT_IDEAS[phase_key]
                 for patent in patent_ideas:
                     # Look for valuation output files
-                    valuation_file = f"output/{tier_key}/{patent['id']}_valuation_report.md"
+                    valuation_file = f"output/{phase_key}/{patent['id']}_valuation_report.md"
                     valuation_files.append(valuation_file)
         
         valuation_data_list = collect_valuation_results_from_outputs(valuation_files)
@@ -926,6 +1173,37 @@ def run_patent_automation(tier_filter: Optional[str] = None, max_patents_per_tie
         logger.info(f"📈 Total Patents Processed: {total_patents}")
         logger.info(f"🎯 Successful Tiers: {successful_tiers}/{len(processing_results)}")
     
+    # Note: Optimization report generation moved to main() function where args is available
+    
+    # Generate agent tracking report if available
+    if TRACKING_AVAILABLE:
+        try:
+            tracker = get_tracker()
+            if tracker:
+                logger.info("=" * 80)
+                logger.info("🔍 AGENT TRACKING REPORT")
+                logger.info("=" * 80)
+                
+                # Generate and display summary report
+                summary_report = tracker.get_summary_report()
+                print(summary_report)
+                
+                # Save detailed report to file
+                report_file = tracker.save_detailed_report()
+                logger.info(f"📊 Detailed agent tracking report saved to: {report_file}")
+                
+                # Show brief usage summary
+                usage_stats = tracker.get_usage_stats()
+                if usage_stats:
+                    logger.info(f"🏷️  Models used: {', '.join(usage_stats.get('models_used', []))}")
+                    logger.info(f"📞 Total API calls: {usage_stats.get('total_calls', 0)}")
+                    logger.info(f"🎯 Agents tracked: {usage_stats.get('agents_tracked', 0)}")
+                    
+        except Exception as e:
+            logger.warning(f"⚠️ Could not generate agent tracking report: {e}")
+    else:
+        logger.info("📊 Agent tracking not available - no tracking report generated")
+    
     return successful_tiers > 0
 
 @trace_function(name="main")
@@ -934,10 +1212,10 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Patent Automation System with CrewAI Native YAML Configuration')
-    parser.add_argument('--tier', type=str, choices=['tier_1', 'tier_2', 'tier_3', 'tier_4'], 
-                       help='Process specific tier only')
-    parser.add_argument('--max-per-tier', type=int, 
-                       help='Maximum number of patents to process per tier')
+    parser.add_argument('--phase', type=str, choices=['phase_1', 'phase_2', 'phase_3'], 
+                       help='Process specific phase only')
+    parser.add_argument('--max-per-phase', type=int, 
+                                                help='Maximum number of patents to process per phase')
     parser.add_argument('--test', action='store_true', 
                        help='Run in test mode (limited patents)')
     parser.add_argument('--no-clear-cache', action='store_true',
@@ -983,7 +1261,7 @@ def main():
     parser.add_argument('--optimization-level', type=str, choices=['conservative', 'balanced', 'aggressive'],
                        default='balanced', help='Level of cost optimization (default: balanced)')
     parser.add_argument('--optimization-target', type=float, default=0.30,
-                       help='Target cost reduction percentage (default: 0.30 for 30%)')
+                       help='Target cost reduction percentage (default: 0.30 for 30 percent)')
     parser.add_argument('--optimization-report', action='store_true',
                        help='Generate detailed optimization report after execution')
     
@@ -1003,8 +1281,8 @@ def main():
     # Handle test mode
     if args.test:
         logger.info("🧪 Running in TEST MODE")
-        if not args.max_per_tier:
-            args.max_per_tier = 1
+        if not args.max_per_phase:
+            args.max_per_phase = 1
             logger.info("   Auto-limiting to 1 patent per tier for testing")
     
     # Handle log clearing
@@ -1026,23 +1304,23 @@ def main():
         try:
             from lib.validation_pipeline import validation_pipeline
             
-            # Determine tiers to validate
-            tiers_to_validate = [args.tier] if args.tier else ['tier_1', 'tier_2', 'tier_3', 'tier_4']
+            # Determine phases to validate
+            phases_to_validate = [args.phase] if args.phase else ['phase_1', 'phase_2', 'phase_3']
             
             overall_results = {}
-            for tier_key in tiers_to_validate:
-                if tier_key in PATENT_IDEAS:
-                    patent_ideas = PATENT_IDEAS[tier_key]
-                    if args.max_per_tier:
-                        patent_ideas = patent_ideas[:args.max_per_tier]
+            for phase_key in phases_to_validate:
+                if phase_key in PATENT_IDEAS:
+                    patent_ideas = PATENT_IDEAS[phase_key]
+                    if args.max_per_phase:
+                        patent_ideas = patent_ideas[:args.max_per_phase]
                     
-                    logger.info(f"🔍 Validating {tier_key} outputs...")
+                    logger.info(f"🔍 Validating {phase_key} outputs...")
                     
-                    tier_results = {}
+                    phase_results = {}
                     for patent in patent_ideas:
                         try:
-                            validation_result = validation_pipeline.validate_complete_workflow(tier_key, patent['id'])
-                            tier_results[patent['id']] = validation_result
+                            validation_result = validation_pipeline.validate_complete_workflow(phase_key, patent['id'])
+                            phase_results[patent['id']] = validation_result
                             
                             status = validation_result['overall_status']
                             quality_score = validation_result['quality_score']
@@ -1057,13 +1335,13 @@ def main():
                         except Exception as e:
                             logger.error(f"❌ Validation failed for {patent['id']}: {e}")
                     
-                    overall_results[tier_key] = tier_results
+                    overall_results[phase_key] = phase_results
             
             # Generate overall validation summary
             if overall_results:
                 all_validations = []
-                for tier_results in overall_results.values():
-                    all_validations.extend(tier_results.values())
+                for phase_results in overall_results.values():
+                    all_validations.extend(phase_results.values())
                 
                 total_validations = len(all_validations)
                 passed_validations = len([v for v in all_validations if v.get('overall_status') == 'PASSED'])
@@ -1102,23 +1380,23 @@ def main():
         with open('config/tasks.yaml', 'r') as f:
             tasks_config = yaml.safe_load(f)
         
-        # Show status for all tiers
-        for tier_key in ['tier_1', 'tier_2', 'tier_3', 'tier_4']:
-            if tier_key in PATENT_IDEAS:
-                patent_ideas = PATENT_IDEAS[tier_key]
-                if args.max_per_tier:
-                    patent_ideas = patent_ideas[:args.max_per_tier]
+        # Show status for all phases
+        for phase_key in ['phase_1', 'phase_2', 'phase_3']:
+            if phase_key in PATENT_IDEAS:
+                patent_ideas = PATENT_IDEAS[phase_key]
+                if args.max_per_phase:
+                    patent_ideas = patent_ideas[:args.max_per_phase]
                 
-                tier_info = PATENT_CONFIG['portfolio_tiers'][tier_key]
-                logger.info(f"\n🎯 {tier_info['name']} Status:")
-                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, tier_key)
+                phase_info = PATENT_CONFIG['portfolio_tiers'][phase_key]
+                logger.info(f"\n🎯 {phase_info['name']} Status:")
+                incremental_processor.print_missing_assets_report(patent_ideas, tasks_config, phase_key)
         
         return True
     
     # Run the automation
     success = run_patent_automation(
-        args.tier, 
-        args.max_per_tier, 
+        phase_filter=args.phase, 
+        max_patents_per_phase=args.max_per_phase, 
         clear_cache=not args.no_clear_cache,
         incremental=not args.no_incremental,
         force_regenerate=args.force_regenerate,

@@ -1,7 +1,10 @@
 import os
 import json
 from typing import Dict, Any, List
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 import logging
 from datetime import datetime
 import base64
@@ -48,7 +51,7 @@ class ArchitectureDiagramTool(BaseTool):
             key_claims = key_claims or ["No claims provided"]
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
-            tier = tier or "tier_1"  # Default to tier_1 if not specified
+            tier = tier or "phase_1"  # Default to phase_1 if not specified
             
             # Validate inputs
             validate_patent_dict({

@@ -1,7 +1,10 @@
 import os
 import json
 from typing import Dict, Any, List
-from crewai.tools import BaseTool
+try:
+    from crewai.tools import BaseTool
+except ImportError:
+    from crewai.tools.agent_tools import Tool as BaseTool
 import logging
 from datetime import datetime
 import nbformat
@@ -10,22 +13,48 @@ import nbformat
 from lib.validation import validate_patent_dict
 
 # --- New helper functions for dynamic claim analysis and editorial review ---
-def select_claim_to_demonstrate(key_claims: List[str]) -> str:
+def select_claim_to_demonstrate(key_claims: List[str], build_requirements: List[str] = None) -> str:
     """
     Select the most implementable claim for demonstration.
     Prioritizes claims that can showcase substantial code implementations.
+    Uses build requirements to guide claim selection if provided.
     """
     if not key_claims:
         return "No claims provided"
     
-    # Priority keywords for selecting claims (in order of preference)
-    priority_keywords = [
-        ['semantic', 'agent', 'reasoning'],       # Semantic agent claims
-        ['multi-agent', 'coordination'],          # Multi-agent coordination
-        ['gpu', 'acceleration', 'processing'],    # GPU acceleration
-        ['optimization', 'system'],               # General optimization
-        ['method', 'architecture'],               # Method/architecture claims
-    ]
+    # If build requirements are specified, use them to guide claim selection
+    if build_requirements:
+        # Create priority keywords from build requirements
+        priority_keywords = []
+        for req in build_requirements:
+            req_lower = req.lower()
+            if 'mnist' in req_lower or 'neural' in req_lower or 'neuron' in req_lower:
+                priority_keywords.append(['neural', 'network', 'neuron', 'mnist'])
+            elif 'feature engineering' in req_lower:
+                priority_keywords.append(['feature', 'engineering', 'preprocessing'])
+            elif 'loss function' in req_lower:
+                priority_keywords.append(['loss', 'function', 'optimization'])
+            elif 'ensemble' in req_lower or 'voting' in req_lower:
+                priority_keywords.append(['ensemble', 'voting', 'consensus'])
+            elif 'orchestration' in req_lower or 'tool' in req_lower:
+                priority_keywords.append(['orchestration', 'tool', 'deployment'])
+            elif 'auction' in req_lower or 'market' in req_lower:
+                priority_keywords.append(['auction', 'market', 'bid'])
+            elif 'swarm' in req_lower:
+                priority_keywords.append(['swarm', 'pheromone', 'coordination'])
+            elif 'federated' in req_lower:
+                priority_keywords.append(['federated', 'privacy', 'secure'])
+        
+        print(f"Using build requirements for claim selection: {build_requirements}")
+    else:
+        # Default priority keywords for selecting claims (in order of preference)
+        priority_keywords = [
+            ['semantic', 'agent', 'reasoning'],       # Semantic agent claims
+            ['multi-agent', 'coordination'],          # Multi-agent coordination
+            ['gpu', 'acceleration', 'processing'],    # GPU acceleration
+            ['optimization', 'system'],               # General optimization
+            ['method', 'architecture'],               # Method/architecture claims
+        ]
     
     # Score each claim based on priority keywords
     claim_scores = []
@@ -52,18 +81,24 @@ def select_claim_to_demonstrate(key_claims: List[str]) -> str:
     print(f"Selected claim for demonstration: {selected_claim}")
     return selected_claim
 
-def generate_code_for_claim(claim: str, accepted_suggestions: List[str] = None) -> str:
+def generate_code_for_claim(claim: str, accepted_suggestions: List[str] = None, build_requirements: List[str] = None) -> str:
     """
     Generate substantive code implementation for a patent claim.
     Integrates accepted editorial suggestions into the actual implementation.
+    Uses build requirements to guide code generation if provided.
     """
     accepted_suggestions = accepted_suggestions or []
+    build_requirements = build_requirements or []
     
     # Check for improvement suggestions
     needs_error_handling = any("error handling" in s.lower() for s in accepted_suggestions)
     needs_documentation = any("documentation" in s.lower() for s in accepted_suggestions)
     needs_benchmarks = any("benchmark" in s.lower() or "performance" in s.lower() for s in accepted_suggestions)
     needs_visualization = any("visualiz" in s.lower() for s in accepted_suggestions)
+    
+    # Generate code based on build requirements if provided
+    if build_requirements:
+        return generate_code_for_build_requirements(build_requirements, claim, accepted_suggestions)
     
     # Enhanced pattern matching for claim types
     claim_lower = claim.lower()
@@ -347,6 +382,169 @@ if len(benchmark_results) > 0:
     
     return base_code
 
+def generate_code_for_build_requirements(build_requirements: List[str], claim: str, accepted_suggestions: List[str] = None) -> str:
+    """Generate specific code based on build requirements"""
+    accepted_suggestions = accepted_suggestions or []
+    
+    # Check for specific build requirement patterns
+    for req in build_requirements:
+        req_lower = req.lower()
+        
+        if 'mnist' in req_lower and 'neural' in req_lower:
+            return generate_mnist_neural_code(claim, accepted_suggestions)
+        elif 'feature engineering' in req_lower:
+            return generate_feature_engineering_code(claim, accepted_suggestions)
+        elif 'loss function' in req_lower:
+            return generate_loss_function_code(claim, accepted_suggestions)
+        elif 'ensemble' in req_lower or 'voting' in req_lower:
+            return generate_ensemble_voting_code(claim, accepted_suggestions)
+        elif 'orchestration' in req_lower or 'tool' in req_lower:
+            return generate_orchestration_code(claim, accepted_suggestions)
+        elif 'auction' in req_lower:
+            return generate_auction_code(claim, accepted_suggestions)
+        elif 'swarm' in req_lower:
+            return generate_swarm_code(claim, accepted_suggestions)
+        elif 'federated' in req_lower:
+            return generate_federated_code(claim, accepted_suggestions)
+    
+    # Default fallback
+    return f"# Demo for: {claim}\n\n# Build Requirements: {build_requirements}\n\nprint('Demo implementation needed for: {build_requirements}')"
+
+def generate_mnist_neural_code(claim: str, accepted_suggestions: List[str] = None) -> str:
+    """Generate MNIST neural network demo code"""
+    return """
+# MNIST Neural Network with Agent-Based Neurons Demo
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+import matplotlib.pyplot as plt
+
+class AgentNeuron:
+    def __init__(self, neuron_id):
+        self.neuron_id = neuron_id
+        self.weights = np.random.normal(0, 0.1, 784)
+        self.bias = 0.0
+        self.activation_history = []
+        
+    def reason_about_input(self, input_data):
+        \"\"\"Agent-based reasoning for neural activation\"\"\"
+        # Calculate weighted sum
+        weighted_sum = np.dot(input_data, self.weights) + self.bias
+        
+        # Agent reasoning: decide activation based on pattern
+        if weighted_sum > 0.5:
+            activation = 1.0
+            reasoning = f"Strong positive signal ({weighted_sum:.2f}) - HIGH activation"
+        elif weighted_sum > 0:
+            activation = weighted_sum
+            reasoning = f"Moderate signal ({weighted_sum:.2f}) - MODERATE activation"
+        else:
+            activation = 0.0
+            reasoning = f"Weak signal ({weighted_sum:.2f}) - NO activation"
+        
+        self.activation_history.append(activation)
+        return activation, reasoning
+
+# Load MNIST data
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.reshape(-1, 784) / 255.0
+x_test = x_test.reshape(-1, 784) / 255.0
+
+# Create agent neurons
+print("Creating agent-based neural network...")
+agent_neurons = [AgentNeuron(i) for i in range(10)]
+
+# Test with a sample
+sample_input = x_test[0]
+sample_label = y_test[0]
+
+print(f"\\nTesting with digit {sample_label}:")
+print("Agent neuron reasoning:")
+
+for i, neuron in enumerate(agent_neurons):
+    activation, reasoning = neuron.reason_about_input(sample_input)
+    print(f"Neuron {i}: {reasoning}")
+
+print("\\n✅ Agent-based neural network demonstration complete!")
+"""
+
+def generate_feature_engineering_code(claim: str, accepted_suggestions: List[str] = None) -> str:
+    """Generate feature engineering agent demo code"""
+    return """
+# Feature Engineering Agent Demo
+import numpy as np
+import pandas as pd
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+class FeatureEngineeringAgent:
+    def __init__(self):
+        self.feature_history = []
+        self.reasoning_log = []
+        
+    def reason_about_features(self, X, y):
+        \"\"\"Agent reasoning for feature engineering\"\"\"
+        # Analyze feature correlations
+        if isinstance(X, np.ndarray):
+            X_df = pd.DataFrame(X, columns=[f'feature_{i}' for i in range(X.shape[1])])
+        else:
+            X_df = X.copy()
+        
+        # Agent reasoning: create polynomial features
+        reasoning = "Analyzing feature relationships..."
+        self.reasoning_log.append(reasoning)
+        
+        # Create interaction features
+        new_features = []
+        for i in range(min(5, X_df.shape[1])):
+            for j in range(i+1, min(5, X_df.shape[1])):
+                new_feature = X_df.iloc[:, i] * X_df.iloc[:, j]
+                new_features.append(new_feature)
+                reasoning = f"Created interaction feature {i}*{j}"
+                self.reasoning_log.append(reasoning)
+        
+        # Combine original and new features
+        X_engineered = np.column_stack([X_df.values] + new_features)
+        
+        return X_engineered, self.reasoning_log
+
+# Generate sample data
+X, y = make_classification(n_samples=1000, n_features=5, n_informative=3, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create feature engineering agent
+agent = FeatureEngineeringAgent()
+
+print("🤖 Feature Engineering Agent Demo")
+print("=" * 50)
+
+# Test original features
+rf_original = RandomForestClassifier(random_state=42)
+rf_original.fit(X_train, y_train)
+original_accuracy = accuracy_score(y_test, rf_original.predict(X_test))
+
+print(f"Original features accuracy: {original_accuracy:.4f}")
+
+# Apply agent reasoning
+X_train_engineered, reasoning_log = agent.reason_about_features(X_train, y_train)
+X_test_engineered, _ = agent.reason_about_features(X_test, y_test)
+
+print("\\nAgent reasoning process:")
+for reasoning in reasoning_log:
+    print(f"  • {reasoning}")
+
+# Test engineered features
+rf_engineered = RandomForestClassifier(random_state=42)
+rf_engineered.fit(X_train_engineered, y_train)
+engineered_accuracy = accuracy_score(y_test, rf_engineered.predict(X_test_engineered))
+
+print(f"\\nEngineered features accuracy: {engineered_accuracy:.4f}")
+print(f"Improvement: {engineered_accuracy - original_accuracy:.4f}")
+print("\\n✅ Feature engineering agent demonstration complete!")
+"""
+
 def generate_multi_agent_code(accepted_suggestions: List[str]) -> str:
     """Generate code for multi-agent coordination claims"""
     # Similar structure to semantic agent but focused on coordination
@@ -458,7 +656,7 @@ class ColabDemoGeneratorTool(BaseTool):
     
     def _run(self, patent_id: str, title: str, description: str, key_claims: List[str], 
              technical_features: List[str], market_applications: List[str], 
-             editorial_feedback: str = None, tier: str = None) -> str:
+             editorial_feedback: str = None, tier: str = None, build_requirements: List[str] = None) -> str:
         try:
             patent_id = patent_id or "UNKNOWN"
             title = title or "Untitled Patent"
@@ -466,10 +664,18 @@ class ColabDemoGeneratorTool(BaseTool):
             key_claims = key_claims or ["No claims provided"]
             technical_features = technical_features or ["No technical features specified"]
             market_applications = market_applications or ["No market applications specified"]
-            tier = tier or "tier_1"
+            tier = tier or "phase_1"
+            build_requirements = build_requirements or []
+
+            # Fix editorial_feedback parameter handling (convert list to string if needed)
+            if editorial_feedback is not None:
+                if isinstance(editorial_feedback, list):
+                    editorial_feedback = '\n'.join(str(item) for item in editorial_feedback)
+                elif not isinstance(editorial_feedback, str):
+                    editorial_feedback = str(editorial_feedback)
 
             # --- Dynamic claim analysis and code generation ---
-            selected_claim = select_claim_to_demonstrate(key_claims)
+            selected_claim = select_claim_to_demonstrate(key_claims, build_requirements)
 
             # --- Editorial review logic ---
             accepted_suggestions = []
@@ -483,7 +689,7 @@ class ColabDemoGeneratorTool(BaseTool):
                         rejected_suggestions.append(suggestion)
             
             # Generate code with accepted suggestions integrated
-            generated_code = generate_code_for_claim(selected_claim, accepted_suggestions)
+            generated_code = generate_code_for_claim(selected_claim, accepted_suggestions, build_requirements)
 
             # --- Build notebook dynamically ---
             notebook = {
